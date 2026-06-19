@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
-import { Search, ChevronDown, ChevronRight, Sliders, Play, Award, Trophy, Users, Shield, Bell, MapPin, ArrowLeft, RefreshCw, Calendar, Eye, Activity, Star, User, Settings, Tv } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Search, ChevronDown, ChevronRight, Sliders, Play, Award, Trophy, Users, Shield, Bell, MapPin, ArrowLeft, RefreshCw, Calendar, Eye, Activity, Star, User, Settings, Tv, Lock, Unlock } from 'lucide-react';
 import { Match } from '../types';
-import MatchSimulator from './MatchSimulator';
-import WagonWheel from './WagonWheel';
+import SpectatorDashboard from './SpectatorDashboard';
+import AdminSandbox from './AdminSandbox';
 
 interface MatchesListViewProps {
   liveMatch: Match;
@@ -26,6 +26,45 @@ export default function MatchesListView({
   // Filters & Tabs state
   const [activeTab, setActiveTab] = useState<'all' | 'live' | 'upcoming' | 'finished'>('all');
   const [detailMode, setDetailMode] = useState<'user' | 'developer'>('user');
+  
+  // SECURE ROLE-BASED ACCESS CONTROL (RBAC) STATES
+  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authCode, setAuthCode] = useState('');
+  const [authError, setAuthError] = useState('');
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Industry Route/Url Separation Pattern
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const roleParam = params.get('role');
+    const authParam = params.get('auth');
+    if (roleParam === 'developer' || roleParam === 'admin' || authParam === 'admin123') {
+      setIsAdminAuthenticated(true);
+      setDetailMode('developer');
+      triggerToast("🔐 Developer Mode unlocked automatically via URL query params!");
+    }
+  }, []);
+
+  const triggerToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3500);
+  };
+
+  const handleAdminAuthSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (authCode.trim() === 'admin123') {
+      setIsAdminAuthenticated(true);
+      setDetailMode('developer');
+      setShowAuthModal(false);
+      setAuthError('');
+      setAuthCode('');
+      triggerToast("🔓 Access Granted: Developer Mode activated successfully.");
+    } else {
+      setAuthError("❌ Invalid developer key. Access Denied.");
+    }
+  };
+
   const [selectedFormat, setSelectedFormat] = useState('All Formats');
   const [selectedTournament, setSelectedTournament] = useState('All Tournaments');
 
@@ -174,9 +213,8 @@ export default function MatchesListView({
         title: `${match.tournament} - Match Day`,
         venue: match.venue,
         date: 'Live Tracker Mode',
-        status: match.status as any,
-        tossResult: match.statusMessage,
-        oversLimit: 12,
+        status: 'Live',
+        oversLimit: match.format === '12 Overs' ? 12 : 20,
         battingTeamId: 'T1',
         bowlingTeamId: 'T2',
         team1: {
@@ -238,7 +276,7 @@ export default function MatchesListView({
             <ArrowLeft className="h-4 w-4" />
             <span>Back to Matches List</span>
           </button>
-          <div className="border-l border-slate-200 h-6 pl-3">
+          <div className="border-l border-slate-200 h-6 pl-3 text-left">
             <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">CURRENT SIMULATOR ACTIVE:</span>
             <span className="text-xs text-slate-900 font-black ml-1 uppercase">{liveMatch.title}</span>
           </div>
@@ -248,7 +286,7 @@ export default function MatchesListView({
       {currentSimulatedView === 'list' ? (
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 items-start">
           
-          {/* Main Left column: Lists & Tabs (spans 8 cols on XL desktop, stretches on mobile) */}
+          {/* Main Left column: Lists & Tabs */}
           <div className="xl:col-span-8 space-y-6">
             
             {/* Main view header badge */}
@@ -258,7 +296,7 @@ export default function MatchesListView({
                   LIVE MATCHES
                 </h1>
                 <p className="text-xs text-slate-500 mt-1 uppercase font-bold flex items-center gap-1.5">
-                  <span className="h-2 w-2 rounded-full bg-red-600 animate-ping"></span>
+                  <span className="h-2 w-2 rounded-full bg-red-650 animate-pulse"></span>
                   <span>{liveMatchesCount} Matches Live Now</span>
                 </p>
               </div>
@@ -273,7 +311,7 @@ export default function MatchesListView({
               </button>
             </div>
 
-            {/* Segment Controls Tab Row - White Pills with Blue Accent */}
+            {/* Segment Controls Tab Row */}
             <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 pb-3">
               <div className="flex flex-wrap gap-1.5 bg-slate-200/60 p-1 rounded-xl">
                 <button
@@ -321,7 +359,7 @@ export default function MatchesListView({
                 </button>
               </div>
 
-              {/* Filters Actions Row layout of screenshot */}
+              {/* Filters Actions Row */}
               <div className="flex items-center gap-2">
                 <div className="relative">
                   <select
@@ -360,13 +398,13 @@ export default function MatchesListView({
               </div>
             </div>
 
-            {/* List of Match Cards - Pure white backing, slate borders */}
+            {/* List of Match Cards */}
             <div className="space-y-4">
               {filteredMatches.length > 0 ? (
                 filteredMatches.map((m) => (
                   <div 
                     key={m.id}
-                    className="bg-white border border-slate-205 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all relative overflow-hidden flex flex-col md:grid md:grid-cols-12 gap-5 items-center text-left"
+                    className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all relative overflow-hidden flex flex-col md:grid md:grid-cols-12 gap-5 items-center text-left"
                   >
                     {/* Top status header */}
                     <div className="absolute top-0 left-0 right-0 border-b border-slate-50 bg-slate-50/50 px-5 py-1.5 flex justify-between items-center text-[10px]">
@@ -374,7 +412,7 @@ export default function MatchesListView({
                         <span className={`inline-block h-1.5 w-1.5 rounded-full ${m.status === 'Live' ? 'bg-red-500 animate-pulse' : m.status === 'Upcoming' ? 'bg-blue-500' : 'bg-slate-400'}`} />
                         <span className={`font-mono font-black uppercase ${m.status === 'Live' ? 'text-red-500' : 'text-slate-500'}`}>{m.status}</span>
                         <span className="text-slate-300">|</span>
-                        <span className="text-slate-550 font-bold uppercase tracking-wider">{m.league}</span>
+                        <span className="text-slate-500 font-bold uppercase tracking-wider">{m.league}</span>
                       </div>
                       <div className="text-slate-400 font-mono flex items-center gap-1">
                         <MapPin className="h-3 w-3" />
@@ -382,11 +420,10 @@ export default function MatchesListView({
                       </div>
                     </div>
 
-                    {/* Team Logos and Scoreboard (Col length is 5) */}
+                    {/* Team Logos and Scoreboard */}
                     <div className="col-span-5 w-full flex items-center justify-between md:justify-start gap-12 mt-4 md:mt-2">
-                      {/* Team 1 Card */}
                       <div className="flex items-center gap-3">
-                        <div className={`h-11 w-11 rounded-xl bg-gradient-to-tr ${m.team1.logoColor} flex items-center justify-center font-black test-xl shadow-sm text-white select-none`}>
+                        <div className={`h-11 w-11 rounded-xl bg-gradient-to-tr ${m.team1.logoColor} flex items-center justify-center font-black text-xl shadow-sm text-white select-none`}>
                           {m.team1.logo}
                         </div>
                         <div>
@@ -399,7 +436,6 @@ export default function MatchesListView({
 
                       <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">vs</span>
 
-                      {/* Team 2 Card */}
                       <div className="flex items-center gap-3">
                         <div className={`h-11 w-11 rounded-xl bg-gradient-to-tr ${m.team2.logoColor} flex items-center justify-center font-black text-xl shadow-sm text-white select-none`}>
                           {m.team2.logo}
@@ -417,7 +453,7 @@ export default function MatchesListView({
                       </div>
                     </div>
 
-                    {/* Chase summary, Required run rate and dynamic balls pills (Col length is 4) */}
+                    {/* Chase summary */}
                     <div className="col-span-4 w-full border-t border-slate-100 md:border-t-0 md:border-x border-slate-100 px-0 md:px-5 py-4 md:py-1 self-stretch flex flex-col justify-center text-left">
                       <div className="space-y-1">
                         <span className="text-xs font-black text-blue-700 tracking-wide uppercase block">
@@ -428,7 +464,6 @@ export default function MatchesListView({
                         </span>
                       </div>
 
-                      {/* Display recent balls */}
                       {m.recentBalls.length > 0 && (
                         <div className="mt-2.5 space-y-1">
                           <span className="text-[9px] font-mono font-bold uppercase text-slate-400 block">LAST 6 BALLS:</span>
@@ -452,7 +487,7 @@ export default function MatchesListView({
                       )}
                     </div>
 
-                    {/* Quick Access Side action CTA button triggers (Col length is 3) */}
+                    {/* Quick Access Side action CTA button triggers */}
                     <div className="col-span-3 w-full flex flex-row md:flex-col gap-2.5 justify-end">
                       {m.status === 'Live' ? (
                         <>
@@ -480,7 +515,7 @@ export default function MatchesListView({
                           </button>
 
                           {m.watchLive && (
-                            <div className="hidden md:flex items-center justify-center gap-1 text-[9px] font-black text-red-600 animate-pulse uppercase tracking-wider mt-0.5 select-none">
+                            <div className="hidden md:flex items-center justify-center gap-1 text-[9px] font-black text-red-650 animate-pulse uppercase tracking-wider mt-0.5 select-none">
                               <span>Watch Live</span>
                               <span>🚨</span>
                             </div>
@@ -499,7 +534,7 @@ export default function MatchesListView({
                               venue: m.venue,
                               tournamentName: m.tournament
                             })}
-                            className="w-full bg-blue-550 hover:bg-blue-650 text-white font-black uppercase text-[10px] tracking-wider py-3 rounded-lg text-center transition-all cursor-pointer"
+                            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-black uppercase text-[10px] tracking-wider py-3 rounded-lg text-center transition-all cursor-pointer"
                           >
                             Simulate Derby Now
                           </button>
@@ -529,7 +564,7 @@ export default function MatchesListView({
                   <p className="font-extrabold text-sm uppercase">No matches match your filter criteria.</p>
                   <button 
                     onClick={() => { setSelectedFormat('All Formats'); setSelectedTournament('All Tournaments'); }}
-                    className="text-xs text-blue-600 underline font-bold mt-2"
+                    className="text-xs text-blue-600 underline font-bold mt-2 font-mono"
                   >
                     Clear Filters
                   </button>
@@ -539,10 +574,9 @@ export default function MatchesListView({
 
           </div>
 
-          {/* Right Sidebar columns setup layout - spans 4 cols on XL desktop */}
+          {/* Right Sidebar options */}
           <div className="xl:col-span-4 space-y-6">
             
-            {/* Widget 1: Match Center Navigation options box of screenshot */}
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 text-left font-sans">
               <h4 className="font-display font-black text-slate-900 text-xs uppercase tracking-wider pb-3 border-b border-slate-100 flex items-center justify-between">
                 <span>MATCH CENTER</span>
@@ -559,54 +593,18 @@ export default function MatchesListView({
                 ].map((item, id) => (
                   <li 
                     key={id}
-                    onClick={() => handleOpenMatch(allMatchesData[4])}
-                    className="py-3 flex items-center justify-between hover:text-blue-600 cursor-pointer transition-colors"
+                    className="py-3.5 flex justify-between items-center hover:text-slate-950 hover:translate-x-1 transition-all cursor-pointer"
                   >
-                    <span className="flex items-center gap-2">
-                      <span className={`inline-block h-2 w-2 rounded-full ${item.glow ? 'bg-red-500 animate-pulse' : 'bg-slate-300'}`} />
-                      <span>{item.name}</span>
-                    </span>
-                    <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
+                    <span>{item.name}</span>
+                    <div className="flex items-center gap-1">
+                      {item.glow && <span className="h-1.5 w-1.5 bg-red-550 rounded-full animate-pulse" />}
+                      <ChevronRight className="h-3 w-3 text-slate-400" />
+                    </div>
                   </li>
                 ))}
               </ul>
             </div>
 
-            {/* Widget 2: Live Tournaments Side layout of screenshot */}
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 text-left">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-3">
-                <h4 className="font-display font-black text-slate-900 text-xs uppercase tracking-wider">
-                  LIVE TOURNAMENTS
-                </h4>
-                <span className="text-[10px] font-extrabold text-blue-600 hover:underline cursor-pointer uppercase">View All</span>
-              </div>
-              <div className="space-y-3">
-                {[
-                  { name: 'Shivaji Premier League 2024', live: '12 Live', teams: '32 Teams', logo: '🏆', color: 'from-blue-100 to-indigo-50 border-blue-200' },
-                  { name: 'Gujarat Premier League 2024', live: '8 Live', teams: '28 Teams', logo: '⚡', color: 'from-amber-100 to-amber-50 border-amber-200' },
-                  { name: 'Rajasthan Premier League 2024', live: '5 Live', teams: '26 Teams', logo: '👑', color: 'from-pink-100 to-pink-50 border-pink-200' },
-                  { name: 'Delhi Premier League 2024', live: '4 Live', teams: '24 Teams', logo: '🐅', color: 'from-sky-100 to-sky-50 border-sky-200' },
-                  { name: 'Bangalore Champions League', live: '3 Live', teams: '20 Teams', logo: '🦁', color: 'from-emerald-100 to-emerald-55 border-emerald-200' }
-                ].map((tourney, idx) => (
-                  <div key={idx} className={`p-3 rounded-xl border bg-gradient-to-tr ${tourney.color} flex items-center justify-between gap-3`}>
-                    <div className="flex items-center gap-2.5">
-                      <span className="text-xl">{tourney.logo}</span>
-                      <div>
-                        <span className="block text-xs font-black text-slate-900 truncate max-w-40">{tourney.name}</span>
-                        <div className="flex items-center gap-1 text-[9px] text-slate-500 font-mono mt-0.5">
-                          <span className="text-red-600 font-bold">{tourney.live}</span>
-                          <span>•</span>
-                          <span>{tourney.teams}</span>
-                        </div>
-                      </div>
-                    </div>
-                    <ChevronRight className="h-4 w-4 text-slate-400" />
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Widget 3: Quick Stats matching the numbers/data of the screenshot */}
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 text-left">
               <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-3.5">
                 <h4 className="font-display font-black text-slate-900 text-xs uppercase tracking-wider">
@@ -625,15 +623,14 @@ export default function MatchesListView({
                 ].map((stat, idx) => (
                   <div key={idx} className="bg-slate-50/70 border border-slate-200 rounded-xl p-3 flex flex-col justify-center shadow-inner">
                     {stat.icon}
-                    <span className="block font-mono font-black text-slate-900 text-base mt-2">{stat.value}</span>
+                    <span className="block font-mono font-black text-slate-1000 text-base mt-2">{stat.value}</span>
                     <span className="block text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">{stat.label}</span>
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* Widget 4: Dynamic Push Notifications Banner */}
-            <div className="rounded-2xl bg-gradient-to-br from-slate-900 via-indigo-950 to-blue-900 text-white p-5 relative overflow-hidden shadow-lg border border-slate-750 text-left">
+            <div className="rounded-2xl bg-gradient-to-br from-slate-900 via-indigo-950 to-blue-900 text-white p-5 relative overflow-hidden shadow-lg border border-slate-800 text-left">
               <div className="absolute right-[-10px] bottom-[-20px] opacity-15 rotate-12">
                 <Bell className="h-32 w-32 text-white" />
               </div>
@@ -645,11 +642,10 @@ export default function MatchesListView({
                 <h5 className="font-display font-black text-sm uppercase leading-tight tracking-tight">
                   Never Miss a Moment of Cricket!
                 </h5>
-                <p className="text-[10px] text-slate-300 leading-relaxed font-medium">
+                <p className="text-[10px] text-slate-300 leading-relaxed font-semibold">
                   Get high speed live scores, custom local wickets commentary and derby updates directly to your screen device.
                 </p>
 
-                {/* Simulated Notification preview box */}
                 <div className="bg-white/10 rounded-xl p-2.5 border border-white/10 text-[9px] md:text-[10px] space-y-1 backdrop-blur-sm">
                   <div className="flex justify-between items-center text-slate-300 font-bold">
                     <span>🔔 APNA CRICKET LIVE</span>
@@ -660,8 +656,8 @@ export default function MatchesListView({
                 </div>
 
                 <button 
-                  onClick={() => alert('Dynamic Notifications successfully enabled for this browser!')}
-                  className="bg-red-600 hover:bg-red-700 text-white font-black uppercase text-[10px] py-3 px-5 rounded-xl block text-center tracking-widest transition-all cursor-pointer shadow-md select-none"
+                  onClick={() => triggerToast("🔔 Dynamic Push Notifications successfully enabled for your session!")}
+                  className="bg-red-650 hover:bg-red-750 text-white font-black uppercase text-[10px] py-3 px-5 rounded-xl block text-center tracking-widest transition-all cursor-pointer shadow-md select-none w-full border-none"
                 >
                   Enable Notifications
                 </button>
@@ -675,15 +671,16 @@ export default function MatchesListView({
         <div className="space-y-6 text-slate-900" id="match-center-layout">
           
           {/* Elegant Interface Mode Selection Banner */}
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 p-5 border border-slate-200 bg-white rounded-2xl shadow-sm text-left">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 p-5 border border-slate-200 bg-white rounded-2xl shadow-sm text-left relative overflow-hidden">
+            <div className="absolute left-0 top-0 h-full w-1.5 bg-gradient-to-b from-blue-500 via-indigo-500 to-violet-500" />
             <div className="space-y-1">
-              <div className="inline-flex items-center gap-1.5 bg-blue-50 border border-blue-100 rounded-full px-2.5 py-0.5 text-[9px] font-black text-blue-700 tracking-wider uppercase">
-                <span className="h-1.5 w-1.5 rounded-full bg-blue-600 animate-pulse" />
+              <div className="inline-flex items-center gap-1.5 bg-indigo-50 border border-indigo-100 rounded-full px-2.5 py-0.5 text-[9px] font-black text-indigo-700 tracking-wider uppercase">
+                <span className="h-1.5 w-1.5 rounded-full bg-indigo-600 animate-pulse" />
                 <span>DYNAMIC VIEW CONTROL</span>
               </div>
               <h4 className="text-sm font-black text-slate-800 uppercase tracking-tight mt-0.5">Interface View Selector</h4>
               <p className="text-xs text-slate-500 font-medium leading-normal">
-                Choose the viewer screen: <strong>User View</strong> (gorgeous spectator dashboards) or <strong>Developer View</strong> (admin score controllers).
+                Choose the viewer screen: <strong>User View</strong> (spectator dashboard, wagon wheel) or <strong>Developer View</strong> (admin score simulation controls).
               </p>
             </div>
             
@@ -700,296 +697,162 @@ export default function MatchesListView({
                 <span>User View (Spectator)</span>
               </button>
               <button
-                onClick={() => setDetailMode('developer')}
+                onClick={() => {
+                  if (isAdminAuthenticated) {
+                    setDetailMode('developer');
+                  } else {
+                    setShowAuthModal(true);
+                  }
+                }}
                 className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer border ${
                   detailMode === 'developer'
                     ? 'bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-md border-violet-600'
-                    : 'bg-white border-slate-200 text-slate-600 hover:text-slate-800 hover:bg-slate-50'
+                    : 'bg-white border-slate-200 text-slate-600 hover:text-indigo-650 hover:bg-indigo-50/50'
                 }`}
               >
-                <Settings className="h-4 w-4" />
+                {isAdminAuthenticated ? <Unlock className="h-4 w-4 text-emerald-600" /> : <Lock className="h-4 w-4" />}
                 <span>Developer View (Admin)</span>
               </button>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-            {/* Left columns: Scoreboard & Commentary */}
-            <div className="xl:col-span-2 space-y-6">
-              <div className="text-left flex items-center justify-between">
-                <div>
-                  <h2 className="font-display text-3xl font-black tracking-tighter text-slate-900 uppercase">
-                    {detailMode === 'user' ? (
-                      <><span className="text-blue-600">📡</span> Spectator Match Tracker</>
-                    ) : (
-                      <><span className="text-violet-600">⚙️</span> Administrator Sandbox</>
-                    )}
-                  </h2>
-                  <p className="text-xs text-slate-500 mt-1">
-                    {detailMode === 'user' 
-                      ? 'Displaying official game progression data, commentator log feeds, and pitch projections.'
-                      : 'Equipped with match controllers to simulate ball results, wides, wickets, and scoreboard updates.'
-                    }
-                  </p>
-                </div>
-              <button
-                onClick={() => setCurrentSimulatedView('list')}
-                className="flex items-center gap-1 px-3.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl transition-colors text-[10px] uppercase font-black tracking-widest cursor-pointer border border-blue-100"
-              >
-                <ArrowLeft className="h-3 w-3" />
-                <span>Matches List</span>
-              </button>
-            </div>
-            
-            {/* Direct match detail renderer with responsive layout */}
-            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-              {/* Inside ScorecardView.tsx we need to render clean layout */}
-              <div className="flex flex-col gap-6">
-                
-                {/* 🏟️ The Live Ground Layout Hero Section */}
-                <div className="relative overflow-hidden rounded-xl border border-blue-100 bg-slate-50 p-5 shadow-sm">
-                  <div className="absolute right-0 top-0 h-40 w-40 rounded-full bg-blue-500/5 blur-3xl" />
-                  
-                  {/* Header info */}
-                  <div className="relative flex flex-wrap items-center justify-between border-b border-slate-100 pb-3 gap-2 text-left w-full">
-                    <div className="flex items-center gap-3">
-                      <span className="flex items-center gap-1.5 rounded bg-blue-600 px-3 py-1 text-[10px] font-black text-white tracking-wider uppercase">
-                        <span className="h-1.5 w-1.5 rounded-full bg-red-400 animate-ping"></span>
-                        LIVE TRACKER
-                      </span>
-                      <span className="text-xs text-slate-800 font-extrabold uppercase tracking-wider">{liveMatch.title}</span>
-                    </div>
-                    <div className="flex items-center gap-1 text-xs text-slate-500 font-bold uppercase tracking-wider">
-                      <MapPin className="h-3.5 w-3.5 text-blue-600" />
-                      {liveMatch.venue}
-                    </div>
-                  </div>
-
-                  {/* Score display area */}
-                  <div className="relative pt-4 text-left w-full">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
-                      <div>
-                        <div className="flex items-center gap-3">
-                          <div className={`h-3 w-3 rounded-full bg-gradient-to-r ${liveMatch.team1.logoColor}`} />
-                          <h3 className="font-display text-xl font-black text-slate-900 uppercase tracking-tight">{liveMatch.team1.name}</h3>
-                        </div>
-                        
-                        <div className="mt-3 flex items-baseline gap-3">
-                          <span className="font-display text-5xl font-black tracking-tighter text-blue-600 leading-none">
-                            {liveMatch.team1.score.runs}
-                            <span className="text-3xl text-slate-300 font-semibold mx-1">/</span>
-                            {liveMatch.team1.score.wickets}
-                          </span>
-
-                          <div className="flex flex-col border-l border-slate-200 pl-4">
-                            <span className="font-mono text-xs font-black text-slate-700">
-                              OVERS: {liveMatch.team1.score.overs}.{liveMatch.team1.score.balls}
-                              <span className="text-slate-400 font-normal"> / {liveMatch.oversLimit} MAX</span>
-                            </span>
-                            <span className="text-[9px] font-black text-blue-600 uppercase tracking-widest mt-0.5 font-mono">
-                              {liveMatch.isFirstInningsComplete ? 'SECOND INNINGS' : 'FIRST INNINGS'}
-                            </span>
-                          </div>
-                        </div>
-
-                        {liveMatch.tossResult && (
-                          <p className="mt-4 text-xs italic text-slate-600 border-l-2 border-blue-500 pl-3 bg-white py-2 shadow-sm rounded-r">
-                            🏏 {liveMatch.tossResult}
-                          </p>
-                        )}
-                      </div>
-
-                      {/* Run Rate prediction box */}
-                      <div className="grid grid-cols-2 gap-3 bg-white p-4 rounded-xl border border-slate-100 shadow-sm text-left">
-                        <div className="flex flex-col">
-                          <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Current Run Rate</span>
-                          <span className="font-mono text-xl font-black text-slate-800">
-                            {((liveMatch.team1.score.runs / (liveMatch.team1.score.overs * 6 + liveMatch.team1.score.balls || 1)) * 6).toFixed(2)}
-                          </span>
-                        </div>
-                        <div className="flex flex-col border-l border-slate-100 pl-3">
-                          <span className="text-[9px] font-black uppercase tracking-widest text-blue-600">Projected Runs</span>
-                          <span className="font-mono text-xl font-black text-blue-700">
-                            {Math.round(((liveMatch.team1.score.runs / (liveMatch.team1.score.overs * 6 + liveMatch.team1.score.balls || 1)) * 6) * liveMatch.oversLimit)}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                </div>
-
-                {/* Display Live Batters & Bowlers detail card */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-slate-900">
-                  <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 text-left">
-                    <h4 className="text-xs font-black text-slate-700 uppercase tracking-wider mb-2.5 pb-1 border-b border-slate-200 flex items-center gap-1">
-                      <span>🏏</span> Active Batsmen
-                    </h4>
-                    <div className="space-y-2 text-xs font-mono">
-                      <div className="flex justify-between font-bold text-slate-800 pb-1 border-b border-slate-100">
-                        <span>Batsman</span>
-                        <span>Runs (Balls)</span>
-                      </div>
-                      <div className="flex justify-between font-bold text-blue-600">
-                        <span>{liveMatch.miniScore.batsman1.name} *</span>
-                        <span>{liveMatch.miniScore.batsman1.runs} ({liveMatch.miniScore.batsman1.balls})</span>
-                      </div>
-                      <div className="flex justify-between text-slate-500">
-                        <span>{liveMatch.miniScore.batsman2.name}</span>
-                        <span>{liveMatch.miniScore.batsman2.runs} ({liveMatch.miniScore.batsman2.balls})</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 text-left">
-                    <h4 className="text-xs font-black text-slate-700 uppercase tracking-wider mb-2.5 pb-1 border-b border-slate-200 flex items-center gap-1">
-                      <span>🥎</span> Current Bowler
-                    </h4>
-                    <div className="space-y-2 text-xs font-mono">
-                      <div className="flex justify-between font-bold text-slate-800 pb-1 border-b border-slate-100">
-                        <span>Bowler</span>
-                        <span>Overs (Runs/Wkt)</span>
-                      </div>
-                      <div className="flex justify-between text-slate-700">
-                        <span>{liveMatch.miniScore.bowler.name}</span>
-                        <span>{liveMatch.miniScore.bowler.overs} ({liveMatch.team1.score.runs}/{liveMatch.team1.score.wickets})</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Ball by ball dynamic comments log */}
-                <div className="bg-white border border-slate-200 p-4 rounded-xl text-left">
-                  <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider mb-3 pb-1 border-b border-slate-100">
-                    🎤 Local commentary feed
-                  </h4>
-                  <div className="space-y-3 max-h-40 overflow-y-auto custom-scrollbar pr-2">
-                    {liveMatch.ballByBallHistory.length > 0 ? (
-                      liveMatch.ballByBallHistory.slice(0, 5).map((history, idx) => (
-                        <div key={idx} className="text-xs flex gap-2 border-b border-slate-50 pb-2">
-                          <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-mono font-black shrink-0 h-fit self-start">
-                            {history.overNumber}.{history.ballOfOver}
-                          </span>
-                          <div>
-                            <span className="font-bold text-slate-900 block">{history.batsmanName} to {history.bowlerName} ({history.run} runs)</span>
-                            <p className="text-slate-500 leading-relaxed mt-0.5">{history.commentary}</p>
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      <p className="text-xs text-slate-400 italic">No balls bowled in this current simulation yet. Begin by ticking the Arena Control Desk triggers.</p>
-                    )}
-                  </div>
-                </div>
-
-              </div>
-            </div>
-
-          </div>
-
-          {/* Right column: Dynamic changes based on Selected detailMode */}
-          <div className="space-y-6">
+          {/* Conditional View Router based on access control */}
+          <div className="transition-all duration-300">
             {detailMode === 'user' ? (
-              // 👥 SPECTATOR / USER VIEW RENDER
-              <div className="space-y-6">
-                
-                {/* Premium Wagon Wheel Component Injection */}
-                <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm text-left">
-                  <span className="text-[10px] font-black text-[#5b21b6] uppercase tracking-widest block">RADIAL SHOT SPREAD</span>
-                  <h4 className="font-display font-black text-slate-900 text-lg uppercase tracking-tight mt-1 flex items-center gap-2">
-                    <span>🎯</span> Match Wagon Wheel
-                  </h4>
-                  <p className="text-xs text-slate-500 mt-1 mb-4 leading-normal">
-                    Dynamic grass canvas charting actual boundaries, mid-wicket drives, and run densities.
-                  </p>
-                  
-                  <div className="rounded-xl overflow-hidden border border-slate-200 shadow-inner">
-                    <WagonWheel />
-                  </div>
-                </div>
-
-                {/* Fan Zone Match Metrics / Live Predictions */}
-                <div className="rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50 to-indigo-50/50 p-6 shadow-sm relative overflow-hidden text-left">
-                  <div className="absolute right-0 bottom-[-10px] text-7xl opacity-5 select-none font-black text-blue-700">🏏</div>
-                  <span className="bg-blue-600 text-white font-black uppercase text-[8px] tracking-widest px-2 py-0.5 rounded">STATISTICAL ENGINE</span>
-                  <h4 className="font-display font-black text-slate-900 text-sm uppercase tracking-wider flex items-center gap-2 mt-3 mb-2">
-                    <Activity className="h-4 w-4 text-blue-600" />
-                    Live Win Predictor
-                  </h4>
-                  <p className="text-xs text-slate-600 mb-4 leading-relaxed font-semibold">
-                    Calculated using run curves, required overs limit, and active lineup strengths.
-                  </p>
-                  
-                  {/* Visual metric progress meters */}
-                  <div className="space-y-3.5 font-mono text-xs">
-                    <div>
-                      <div className="flex justify-between font-bold text-slate-800 mb-1">
-                        <span>{liveMatch.team1.shortName} Live Win Bias</span>
-                        <span className="text-blue-600 font-black">64%</span>
-                      </div>
-                      <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
-                        <div className="bg-gradient-to-r from-blue-500 to-indigo-600 h-full rounded-full" style={{ width: '64%' }} />
-                      </div>
-                    </div>
-                    <div>
-                      <div className="flex justify-between font-bold text-slate-800 mb-1">
-                        <span>{liveMatch.team2.shortName} Live Win Bias</span>
-                        <span className="text-slate-500 font-semibold">36%</span>
-                      </div>
-                      <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
-                        <div className="bg-slate-300 h-full rounded-full" style={{ width: '36%' }} />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Village Pride detail guide */}
-                <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm text-left">
-                  <h5 className="font-display font-black text-slate-800 text-xs uppercase tracking-wider flex items-center gap-1.5 mb-2.5">
-                    <Star className="h-4 w-4 text-yellow-500 animate-pulse" />
-                    Apna Cricket Ground Rules
-                  </h5>
-                  <ul className="text-xs text-slate-500 space-y-2 leading-relaxed list-disc list-inside">
-                    <li>Matches strictly limited to {liveMatch.oversLimit} overs maximum.</li>
-                    <li>Standard run-chase target is verified by the central scorer's desk.</li>
-                    <li>To manipulate run rates, rotate strikes, or test auto-play modes, toggling to the <strong>Developer View</strong> at the top is recommended.</li>
-                  </ul>
-                </div>
-
-              </div>
+              <SpectatorDashboard
+                liveMatch={liveMatch}
+                setCurrentSimulatedView={setCurrentSimulatedView}
+                onUnlockRequest={() => {
+                  if (isAdminAuthenticated) {
+                    setDetailMode('developer');
+                  } else {
+                    setShowAuthModal(true);
+                  }
+                }}
+              />
             ) : (
-              // 🛠️ DEVELOPER / ADMIN VIEW RENDER
-              <div className="space-y-6">
-                <div>
-                  <h2 className="font-display text-3xl font-black tracking-tighter text-slate-900 uppercase"><span className="text-blue-600">⚙️</span> Arena Control Desk</h2>
-                  <p className="text-xs text-slate-500 mt-1 font-medium">Manage and shape the cricket run progressions directly.</p>
-                </div>
-
-                <MatchSimulator
-                  match={liveMatch}
-                  setMatch={setLiveMatch}
+              isAdminAuthenticated ? (
+                <AdminSandbox
+                  liveMatch={liveMatch}
+                  setLiveMatch={setLiveMatch}
                   onPlayerStatUpdate={onPlayerStatUpdate}
+                  setCurrentSimulatedView={setCurrentSimulatedView}
                 />
-
-                {/* Village rulebook details card */}
-                <div className="rounded-2xl border border-blue-100 bg-white p-6 shadow-sm relative overflow-hidden text-left">
-                  <div className="absolute right-0 bottom-0 text-7xl opacity-5 select-none">🏏</div>
-                  <h4 className="font-display font-black text-blue-700 text-sm uppercase tracking-wider flex items-center gap-2 mb-3">
-                    <Star className="h-4 w-4 text-blue-600 fill-current" />
-                    Apna Cricket Local Rulebook
-                  </h4>
-                  <ul className="text-xs text-slate-600 space-y-2.5 leading-relaxed list-disc list-inside">
-                    <li>12 Overs maximum limit for derby matches.</li>
-                    <li>Wides and No-Balls award exactly 1 run to score, No-Ball gives next ball as free hit.</li>
-                    <li>Cow Corner hitting has high likelihood of 6 runs or getting caught on boundary.</li>
-                  </ul>
+              ) : (
+                // Safe Fallback Challenge Panel on Screen
+                <div className="bg-white border border-slate-200 rounded-2xl p-8 max-w-md mx-auto text-center shadow-lg my-10">
+                  <div className="h-16 w-16 bg-red-50 text-red-500 border border-red-100 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
+                    🔐
+                  </div>
+                  <h3 className="font-display font-black text-slate-900 text-lg uppercase tracking-tight">Privileged Dashboard Area</h3>
+                  <p className="text-xs text-slate-500 mt-2 mb-6 leading-relaxed">
+                    Access is restricted to software administrators and developers. Please verify your role token to open sandbox controls.
+                  </p>
+                  
+                  <button
+                    onClick={() => setShowAuthModal(true)}
+                    className="w-full bg-gradient-to-r from-violet-600 to-indigo-650 text-white text-xs font-black uppercase tracking-wider py-3.5 rounded-xl shadow-md hover:scale-[1.02] active:scale-95 transition-all cursor-pointer"
+                  >
+                    Authenticate with Key
+                  </button>
                 </div>
-              </div>
+              )
             )}
           </div>
         </div>
-      </div>
-    )}
+      )}
+
+      {/* Dynamic Toast Feedback Notification System */}
+      {toastMessage && (
+        <div className="fixed bottom-6 right-6 z-50 bg-slate-900 border border-slate-850 text-white text-xs font-semibold px-4.5 py-3 rounded-xl shadow-2xl flex items-center gap-2.5 max-w-sm animate-bounce">
+          <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+          <span>{toastMessage}</span>
+        </div>
+      )}
+
+      {/* SECURE ADMIN ACCESS MODAL (ROLE-BASED AUTHORIZATION OVERLAY) */}
+      {showAuthModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-3xl w-full max-w-md overflow-hidden shadow-2xl text-left">
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+              <div className="flex items-center gap-2">
+                <span className="text-xl">🛡️</span>
+                <div>
+                  <h4 className="font-display font-black text-slate-900 text-sm uppercase tracking-tight">Developer Verification</h4>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Apna Cricket Cloud Access</p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setShowAuthModal(false);
+                  setAuthError('');
+                  setAuthCode('');
+                }}
+                className="p-1 px-1.5 hover:bg-slate-200/60 rounded-lg text-slate-400 hover:text-slate-700 transition-colors text-xs font-bold font-mono"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleAdminAuthSubmit} className="p-6 space-y-4">
+              <p className="text-xs text-slate-600 leading-normal font-medium">
+                In actual software deployments, Developer/Umpire controls are restricted. To simulate this role change locally, enter our staging passcode below.
+              </p>
+
+              <div className="p-3 bg-indigo-50 border border-indigo-100 rounded-xl space-y-1.5 text-xs text-indigo-800 font-semibold">
+                <p className="flex items-center gap-1">
+                  <span>💡</span>
+                  <span><strong>Staging Credentials:</strong></span>
+                </p>
+                <div className="font-mono text-[11px] bg-white/70 px-2 py-1.5 rounded border border-indigo-200/50 flex justify-between items-center">
+                  <span>Developer Key: <strong className="text-indigo-950">admin123</strong></span>
+                  <span className="text-[9px] bg-indigo-100 px-1 py-0.5 rounded text-indigo-700">STAGING</span>
+                </div>
+                <p className="text-[10px] text-indigo-600">
+                  You can also append <strong className="font-mono">?role=developer</strong> directly to the URL in your address bar to simulate SSO bypass!
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black uppercase text-slate-500 tracking-wider mb-1.5">Enter Passcode Key</label>
+                <input
+                  type="password"
+                  placeholder="••••••••"
+                  value={authCode}
+                  onChange={(e) => setAuthCode(e.target.value)}
+                  className="w-full px-4 py-3 border border-slate-200 rounded-xl text-sm font-mono focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                  required
+                  autoFocus
+                />
+              </div>
+
+              {authError && (
+                <p className="text-xs text-red-600 font-bold leading-normal">{authError}</p>
+              )}
+
+              <div className="flex gap-2.5 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAuthModal(false);
+                    setAuthError('');
+                    setAuthCode('');
+                  }}
+                  className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-black uppercase tracking-wider py-3.5 rounded-xl cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 bg-gradient-to-r from-indigo-600 to-blue-600 hover:opacity-95 text-white text-xs font-black uppercase tracking-wider py-3.5 rounded-xl shadow-md cursor-pointer"
+                >
+                  Verify credentials
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
     </div>
   );

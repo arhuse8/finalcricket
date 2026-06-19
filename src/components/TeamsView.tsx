@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Shield, Users, Trophy, Award, Sparkles, User, Medal, MapPin, Check, Plus } from 'lucide-react';
+import { Shield, Users, Trophy, Award, Sparkles, User, Medal, MapPin, Check, Plus, BookOpen, Crown } from 'lucide-react';
 import { Player } from '../types';
 
 interface TeamsViewProps {
@@ -88,63 +88,71 @@ export default function TeamsView({ players, onAddPlayer }: TeamsViewProps) {
   const teamRoster = players.filter(p => p.teamId === selectedTeamId);
 
   return (
-    <div className="space-y-8" id="teams-view-root">
+    <div className="space-y-8 text-slate-800" id="teams-view-root">
       
       {/* HEADER SECTION */}
-      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 pb-4">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-slate-200 pb-5 text-left">
         <div>
-          <h2 className="font-display text-2xl font-black text-white uppercase tracking-tight">🛡️ Panchayat Team Standings & Squads</h2>
-          <p className="text-xs text-slate-400 mt-1">Manage, recruit, or inspect neighborhood cricket rosters, records, and venues.</p>
+          <h1 className="font-display text-3xl font-black text-slate-900 uppercase tracking-tight">
+            🛡️ Teams & Rosters
+          </h1>
+          <p className="text-xs text-slate-500 mt-1 uppercase font-bold tracking-wider">
+            Manage club registrations, recruit local heroes, or browse team rosters
+          </p>
         </div>
 
         <button
           onClick={() => setShowTeamBuilder(!showTeamBuilder)}
-          className="flex items-center gap-2 bg-[#ccff00] hover:bg-[#bbf000] text-[#061a12] font-black uppercase tracking-wider text-xs px-4 py-2.5 rounded-xl transition-all shadow-md"
+          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-black uppercase tracking-wider text-xs px-5 py-3 rounded-xl transition-all shadow-md shrink-0 cursor-pointer"
           id="btn-trigger-builder"
         >
-          <Plus className="h-4 w-4 text-[#061a12]" />
-          <span>Draft Custom Club / VPL Team</span>
+          <Plus className="h-4 w-4" />
+          <span>Draft Custom Club</span>
         </button>
       </div>
 
       {/* DRAFT BUILDER MODAL-LIKE DRAWER */}
       {showTeamBuilder && (
-        <form onSubmit={saveDraftTeam} className="p-6 border border-white/10 bg-black/40 rounded-2xl space-y-4 animate-slide-up" id="form-team-builder">
-          <div className="flex justify-between items-center border-b border-white/15 pb-3">
-            <h4 className="font-display font-black text-white uppercase tracking-wider text-sm flex items-center gap-1.5">
-              <Sparkles className="h-4 w-4 text-[#ccff00]" />
-              Draft A Custom Village Club
+        <form 
+          onSubmit={saveDraftTeam} 
+          className="p-6 border border-slate-200 bg-white rounded-3xl space-y-5 shadow-lg text-left transition-all max-w-4xl mx-auto" 
+          id="form-team-builder"
+        >
+          <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+            <h4 className="font-display font-black text-slate-800 uppercase tracking-wider text-xs flex items-center gap-1.5">
+              <Sparkles className="h-4 w-4 text-blue-600" />
+              DRAFT A CUSTOM VILLAGE CLUB
             </h4>
             <button
               type="button"
               onClick={() => setShowTeamBuilder(false)}
-              className="text-[#ccff00] text-xs font-black uppercase tracking-wider hover:underline"
+              className="text-slate-400 hover:text-slate-700 text-xs font-black uppercase tracking-wider cursor-pointer"
             >
-              Close Form
+              Close Drawer
             </button>
           </div>
 
           {successMsg && (
-            <div className="bg-[#ccff00]/10 text-[#ccff00] border border-[#ccff00]/25 p-3 rounded-lg text-xs font-mono">
+            <div className="bg-emerald-50 text-emerald-800 border border-emerald-250 p-3 rounded-xl text-xs font-mono font-bold">
               {successMsg}
             </div>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
             <div className="space-y-1.5">
-              <label className="text-[10px] font-black uppercase text-slate-300">Club / Team Name</label>
+              <label className="text-[10px] font-black uppercase text-slate-500 tracking-wider">Club / Team Name</label>
               <input
                 type="text"
                 required
                 value={newTeamName}
                 onChange={e => setNewTeamName(e.target.value)}
                 placeholder="e.g. Khalsa Strikers"
-                className="w-full bg-black border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#ccff00]"
+                className="w-full bg-slate-50 border border-slate-250 rounded-xl px-3 py-2.5 text-xs text-slate-805 font-bold focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500"
               />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[10px] font-black uppercase text-slate-300">Short Name (3 Letters)</label>
+              <label className="text-[10px] font-black uppercase text-slate-500 tracking-wider">Short Name (3 Letters)</label>
               <input
                 type="text"
                 required
@@ -152,28 +160,28 @@ export default function TeamsView({ players, onAddPlayer }: TeamsViewProps) {
                 value={newTeamShort}
                 onChange={e => setNewTeamShort(e.target.value)}
                 placeholder="e.g. KHL"
-                className="w-full bg-black border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#ccff00]"
+                className="w-full bg-slate-50 border border-slate-250 rounded-xl px-3 py-2.5 text-xs text-slate-805 font-bold focus:outline-none' focus:ring-2 focus:ring-blue-100 focus:border-blue-500"
               />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[10px] font-black uppercase text-slate-300">Club Captain Name</label>
+              <label className="text-[10px] font-black uppercase text-slate-500 tracking-wider">Club Captain Name</label>
               <input
                 type="text"
                 required
                 value={newTeamCaptain}
                 onChange={e => setNewTeamCaptain(e.target.value)}
                 placeholder="e.g. Harbhajan Singh"
-                className="w-full bg-black border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#ccff00]"
+                className="w-full bg-slate-50 border border-slate-250 rounded-xl px-3 py-2.5 text-xs text-slate-805 font-bold focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500"
               />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[10px] font-black uppercase text-slate-300">Visual Gradient Team Palette</label>
+              <label className="text-[10px] font-black uppercase text-slate-500 tracking-wider">Visual Gradient Team Palette</label>
               <select
                 value={newTeamColor}
                 onChange={e => setNewTeamColor(e.target.value)}
-                className="w-full bg-black border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#ccff00]"
+                className="w-full bg-slate-50 border border-slate-250 rounded-xl px-3 py-2.5 text-xs text-slate-800 font-bold focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 cursor-pointer"
               >
                 <option value="from-purple-500 to-indigo-600">💜 Royal Indigo</option>
                 <option value="from-fuchsia-500 to-pink-600">💖 Fuchsia Fire</option>
@@ -186,53 +194,55 @@ export default function TeamsView({ players, onAddPlayer }: TeamsViewProps) {
           <div className="flex justify-end pt-2">
             <button
               type="submit"
-              className="bg-[#ccff00] hover:bg-[#bbf000] text-[#061a12] font-black uppercase tracking-widest text-xs px-6 py-3.5 rounded-xl shadow-lg transition-all"
+              className="bg-blue-600 hover:bg-blue-750 text-white font-black uppercase tracking-widest text-xs px-6 py-3.5 rounded-xl shadow-lg transition-all"
             >
-              REGISTER SQUAD & DRAFT
+              Register & Save Squad
             </button>
           </div>
         </form>
       )}
 
       {/* TEAMS LAYOUT COLUMN/GRID */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         
         {/* Left Side: Teams List cards */}
-        <div className="lg:col-span-1 space-y-4">
-          <span className="text-[10px] font-black text-slate-450 uppercase tracking-widest block">
-            Click A Team To Inspect Roster
+        <div className="lg:col-span-4 space-y-4">
+          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block text-left">
+            Select A Team To Inspect Roster
           </span>
 
           <div className="space-y-3">
             {allActiveTeams.map(tc => {
-              const capImage = tc.id === 'RAMPUR' ? '🏏' : tc.id === 'MALGUDI' ? '🌀' : tc.id === 'DANGAL' ? '🔥' : '💥';
               const teamPlayersCount = players.filter(p => p.teamId === tc.id).length;
+              const isSelected = selectedTeamId === tc.id;
               
               return (
                 <div
                   key={tc.id}
                   onClick={() => setSelectedTeamId(tc.id)}
-                  className={`cursor-pointer rounded-2xl border p-5 transition-all flex items-center justify-between relative overflow-hidden ${
-                    selectedTeamId === tc.id
-                      ? 'bg-black/60 border-[#ccff00] shadow-lg shadow-[#ccff00]/5'
-                      : 'bg-black/20 border-white/10 hover:border-white/20'
+                  className={`cursor-pointer rounded-2xl border p-4.5 transition-all flex items-center justify-between relative overflow-hidden text-left ${
+                    isSelected
+                      ? 'bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-500/10'
+                      : 'bg-white border-slate-200 hover:border-slate-300 text-slate-800 hover:shadow-sm'
                   }`}
                   id={`team-sidebar-card-${tc.id}`}
                 >
-                  <div className="flex items-center gap-4">
-                    <div className={`h-11 w-11 rounded bg-gradient-to-tr ${tc.color} flex items-center justify-center font-display font-black text-sm text-white shadow-lg shadow-black/30`}>
+                  <div className="flex items-center gap-3.5">
+                    <div className={`h-11 w-11 rounded bg-gradient-to-tr ${tc.color} flex items-center justify-center font-display font-black text-sm text-white shadow-sm`}>
                       {tc.short}
                     </div>
                     <div>
-                      <span className="text-sm font-black text-white uppercase tracking-wider block">{tc.name}</span>
-                      <span className="text-[10px] text-slate-500 font-mono block">CAPTAIN: {tc.captain}</span>
+                      <span className={`text-sm font-black uppercase tracking-wider block ${isSelected ? 'text-white' : 'text-slate-900'}`}>{tc.name}</span>
+                      <span className={`text-[10px] font-bold uppercase tracking-wider block mt-0.5 ${isSelected ? 'text-blue-200' : 'text-slate-400'}`}>
+                        Captain: {tc.captain}
+                      </span>
                     </div>
                   </div>
 
-                  <div className="text-right text-xs font-mono">
-                    <span className="block text-[9px] text-slate-500 uppercase">SQUAD TYPE</span>
-                    <span className="font-extrabold text-[#ccff00]">
-                      {teamPlayersCount > 0 ? `${teamPlayersCount} Players` : '1 Captain'}
+                  <div className="text-right text-xs font-mono shrink-0 pl-1">
+                    <span className={`block text-[8px] font-bold uppercase ${isSelected ? 'text-blue-200' : 'text-slate-400'}`}>ROSTER SIZE</span>
+                    <span className={`font-black uppercase text-xs tracking-wider ${isSelected ? 'text-white' : 'text-blue-600'}`}>
+                      {teamPlayersCount > 0 ? `${teamPlayersCount} Active` : '1 Captain'}
                     </span>
                   </div>
                 </div>
@@ -242,7 +252,7 @@ export default function TeamsView({ players, onAddPlayer }: TeamsViewProps) {
         </div>
 
         {/* Right Side: Team Detail & squad roster listings */}
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-8">
           <AnimatePresence mode="wait">
             {activeTeam ? (
               <motion.div
@@ -250,73 +260,73 @@ export default function TeamsView({ players, onAddPlayer }: TeamsViewProps) {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
-                className="bg-black/40 border border-white/10 rounded-2xl overflow-hidden p-6 space-y-6"
+                className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden p-6 space-y-6"
                 id="team-active-details"
               >
                 {/* Visual Header */}
-                <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 pb-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-5 text-left">
                   <div className="flex items-center gap-4">
-                    <div className={`h-14 w-14 rounded-xl bg-gradient-to-tr ${activeTeam.color} flex items-center justify-center font-display font-black text-xl text-white shadow-2xl`}>
+                    <div className={`h-14 w-14 rounded-xl bg-gradient-to-tr ${activeTeam.color} flex items-center justify-center font-display font-black text-xl text-white shadow-sm`}>
                       {activeTeam.short}
                     </div>
                     <div>
-                      <h3 className="font-display text-2xl font-black text-white uppercase tracking-tight">{activeTeam.name}</h3>
-                      <p className="text-xs text-slate-400 flex items-center gap-1">
-                        <MapPin className="h-3.5 w-3.5 text-[#ccff00]" />
-                        Home Field Venue: {activeTeam.venue}
+                      <h3 className="font-display text-2xl font-black text-slate-900 uppercase tracking-tight">{activeTeam.name}</h3>
+                      <p className="text-xs text-slate-500 font-bold flex items-center gap-1.5 mt-0.5 uppercase tracking-wider">
+                        <MapPin className="h-3.5 w-3.5 text-blue-600 shrink-0" />
+                        <span>Home Venue: {activeTeam.venue}</span>
                       </p>
                     </div>
                   </div>
 
-                  <div className="flex gap-4 font-mono text-center">
-                    <div className="p-2.5 bg-white/5 rounded-xl border border-white/5">
-                      <span className="block text-[9px] text-slate-500 uppercase">Cups Won</span>
-                      <span className="text-sm font-black text-[#ccff00]">{activeTeam.trophies || '–'} Trophies</span>
+                  <div className="flex gap-3 font-mono text-center self-start sm:self-center">
+                    <div className="px-3.5 py-2.5 bg-slate-50 border border-slate-150 rounded-xl">
+                      <span className="block text-[8px] text-slate-400 font-bold uppercase tracking-wider">CUP TROPHIES</span>
+                      <span className="text-xs font-black text-blue-600 uppercase tracking-wider">{activeTeam.trophies || '0'} Titles</span>
                     </div>
-                    <div className="p-2.5 bg-white/5 rounded-xl border border-white/5">
-                      <span className="block text-[9px] text-slate-500 uppercase">Local Rank</span>
-                      <span className="text-sm font-black text-white">#{activeTeam.rank || '–'}</span>
+                    <div className="px-3.5 py-2.5 bg-slate-50 border border-slate-150 rounded-xl">
+                      <span className="block text-[8px] text-slate-400 font-bold uppercase tracking-wider">LOCAL RANK</span>
+                      <span className="text-xs font-black text-slate-800 uppercase tracking-wider">#{activeTeam.rank || 'N/A'}</span>
                     </div>
                   </div>
                 </div>
 
                 {/* Team Captain Spotlight */}
-                <div className="bg-[#ccff00]/5 border border-[#ccff00]/15 p-4 rounded-xl flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 bg-black/60 border border-white/10 rounded-full flex items-center justify-center text-lg">
-                      👑
+                <div className="bg-blue-50/50 border border-blue-100 p-4.5 rounded-xl flex items-center justify-between text-left">
+                  <div className="flex items-center gap-3.5">
+                    <div className="h-10 w-10 bg-white border border-blue-200 rounded-full flex items-center justify-center text-lg shadow-inner">
+                      <Crown className="h-5 w-5 text-blue-650" />
                     </div>
                     <div>
-                      <span className="text-[10px] text-slate-400 font-extrabold uppercase block tracking-wider">APPOINTED LEAGUE CAPTAIN</span>
-                      <span className="text-sm font-black uppercase text-white tracking-wide">{activeTeam.captain}</span>
+                      <span className="text-[10px] text-slate-400 font-black uppercase block tracking-widest">OFFICIAL CLUB CAPTAIN</span>
+                      <span className="text-sm font-black uppercase text-slate-900 tracking-wide">{activeTeam.captain}</span>
                     </div>
                   </div>
 
-                  <span className="text-[10px] text-[#ccff00] font-mono uppercase tracking-widest font-black bg-[#ccff00]/10 border border-[#ccff00]/25 py-1 px-2.5">
-                    authority signed
+                  <span className="text-[9px] text-blue-700 font-mono font-black uppercase tracking-wider bg-blue-100/50 border border-blue-100 px-2.5 py-1 rounded-md">
+                    verified leader
                   </span>
                 </div>
 
                 {/* Squad Members Details */}
-                <div className="space-y-3">
+                <div className="space-y-3.5 text-left">
                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">
                     ACTIVE ROSTER SQUAD MEMBERS ({teamRoster.length})
                   </span>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 font-mono">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 font-mono">
                     {teamRoster.map(player => (
                       <div
                         key={player.id}
-                        className="bg-white/5 p-3.5 rounded-xl border border-white/5 hover:border-white/10 transition-colors flex items-center justify-between"
+                        className="bg-slate-50/60 p-4 rounded-xl border border-slate-150 hover:border-slate-250 transition-all flex items-center justify-between"
                       >
                         <div>
-                          <span className="text-xs font-black text-white block uppercase tracking-wider font-sans">{player.name}</span>
-                          <span className="text-[10px] text-slate-450 block">{player.role} • {player.battingStyle}</span>
+                          <span className="text-xs font-black text-slate-900 block uppercase tracking-wider font-sans">{player.name}</span>
+                          <span className="text-[10px] text-slate-400 font-bold uppercase mt-0.5 block">{player.role} • {player.battingStyle}</span>
                         </div>
 
-                        <div className="text-right text-xs">
-                          <span className="block text-[9px] text-slate-500">CAREER RUNS</span>
-                          <span className="font-bold text-[#ccff00]">{player.stats.runs}</span>
+                        <div className="text-right text-xs shrink-0 pl-1">
+                          <span className="block text-[8px] text-slate-400 font-bold uppercase tracking-wider">CAREER RUNS</span>
+                          <span className="font-black text-blue-600 text-xs tracking-wider">{player.stats.runs}</span>
                         </div>
                       </div>
                     ))}
@@ -324,20 +334,20 @@ export default function TeamsView({ players, onAddPlayer }: TeamsViewProps) {
                 </div>
 
                 {/* Brief History summary of outcomes */}
-                <div className="space-y-2 border-t border-white/5 pt-4">
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">
-                    Historic League Records
+                <div className="space-y-2 border-t border-slate-150 pt-4.5 text-left">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block font-sans">
+                    Historic League Performance Summary
                   </span>
-                  <p className="text-xs text-slate-400 leading-relaxed">
-                    Famous for aggressive boundaries on legside. Under Captain {activeTeam.captain}, this team successfully recorded over 12 derby wins on local dirt grounds. Highly favored by local fans.
+                  <p className="text-xs text-slate-600 font-semibold leading-relaxed">
+                    Widely celebrated by enthusiasts for their highly aggressive boundary hitting on legside deliveries. Under Captain {activeTeam.captain}, this neighborhood club successfully registered over 12 high-tension derby wins to dates. Supported by a passionate crowd of dedicated fans.
                   </p>
                 </div>
 
               </motion.div>
             ) : (
-              <div className="h-72 bg-black/10 border border-dashed border-white/10 rounded-2xl flex flex-col items-center justify-center text-center text-slate-500 p-6">
-                <Shield className="h-10 w-10 text-slate-650 mb-3" />
-                <p className="text-sm font-sans italic">Select or Draft a team from the left side list/panel to reveal detailed squad analyses.</p>
+              <div className="h-72 bg-white border border-dashed border-slate-250 rounded-2xl flex flex-col items-center justify-center text-center text-slate-400 p-6 shadow-sm">
+                <Shield className="h-10 w-10 text-slate-300 mb-3" />
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Select or draft a club team from the left side panel to inspect roster</p>
               </div>
             )}
           </AnimatePresence>

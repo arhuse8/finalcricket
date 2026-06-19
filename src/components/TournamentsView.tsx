@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Trophy, Calendar, MapPin, Award, Users, Star, Plus, ShieldCheck, Play } from 'lucide-react';
+import { Trophy, Calendar, MapPin, Award, Users, Star, Plus, ShieldCheck, HelpCircle, ChevronRight, BookOpen } from 'lucide-react';
 import { Fixture } from '../types';
 
 interface TournamentsViewProps {
@@ -88,54 +88,62 @@ export default function TournamentsView({ fixtures, onAddFixture }: TournamentsV
   };
 
   return (
-    <div className="space-y-8" id="tournaments-view-root">
+    <div className="space-y-8 text-slate-800" id="tournaments-view-root">
       
       {/* HEADER ROW */}
-      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 pb-4">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-slate-200 pb-5 text-left">
         <div>
-          <h2 className="font-display text-2xl font-black text-white uppercase tracking-tight">🏆 Active Tournaments & Points Table</h2>
-          <p className="text-xs text-slate-400 mt-1">Simulate outcome weights, access live tables, or schedule upcoming derbies.</p>
+          <h1 className="font-display text-3xl font-black text-slate-900 uppercase tracking-tight">
+            🏆 Tournaments Center
+          </h1>
+          <p className="text-xs text-slate-500 mt-1 uppercase font-bold tracking-wider">
+            Qualifying stages, real-time standing points, and scheduling controls
+          </p>
         </div>
 
         <button
           onClick={() => setShowScheduler(!showScheduler)}
-          className="flex items-center gap-2 bg-[#ccff00] hover:bg-[#bbf000] text-[#061a12] font-black uppercase tracking-wider text-xs px-4 py-2.5 rounded-xl transition-all shadow-md"
+          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-black uppercase tracking-wider text-xs px-5 py-3 rounded-xl transition-all shadow-md shrink-0 cursor-pointer"
         >
           <Plus className="h-4 w-4" />
-          <span>Schedule New Match (Admin)</span>
+          <span>Schedule New Match</span>
         </button>
       </div>
 
       {/* AD-HOC FIXTURE SCHEDULER DRAWER */}
       {showScheduler && (
-        <form onSubmit={handleAddFixtureSubmit} className="p-6 border border-white/10 bg-black/40 rounded-2xl space-y-4" id="scheduler-form">
-          <div className="flex justify-between items-center border-b border-white/10 pb-3">
-            <h4 className="font-display font-black text-white uppercase tracking-wider text-xs flex items-center gap-1.5">
-              <ShieldCheck className="h-4 w-4 text-[#ccff00]" />
-              LEAGUE SCHEDULING UNIT
+        <form 
+          onSubmit={handleAddFixtureSubmit} 
+          className="p-6 border border-slate-200 bg-white rounded-3xl space-y-5 shadow-lg text-left transition-all max-w-4xl mx-auto" 
+          id="scheduler-form"
+        >
+          <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+            <h4 className="font-display font-black text-slate-800 uppercase tracking-wider text-xs flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4 text-blue-600" />
+              LEAGUE SCHEDULING UNIT (ADMIN CONTROLS)
             </h4>
             <button
               type="button"
               onClick={() => setShowScheduler(false)}
-              className="text-[#ccff00] text-xs font-black uppercase tracking-wider hover:underline"
+              className="text-slate-400 hover:text-slate-700 text-xs font-black uppercase tracking-wider cursor-pointer"
             >
               Cancel
             </button>
           </div>
 
           {successMsg && (
-            <div className="bg-[#ccff00]/10 text-[#ccff00] border border-[#ccff00]/20 p-2.5 rounded text-xs font-mono font-bold">
+            <div className="bg-emerald-50 text-emerald-800 border border-emerald-200 p-3.5 rounded-xl text-xs font-mono font-bold">
               {successMsg}
             </div>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-3.5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4">
             <div className="space-y-1.5">
-              <label className="text-[10px] font-black uppercase text-slate-300">Team 1 (Home)</label>
+              <label className="text-[10px] font-black uppercase text-slate-500 tracking-wider">Team 1 (Home)</label>
               <select
                 value={team1}
                 onChange={e => setTeam1(e.target.value)}
-                className="w-full bg-black border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
+                className="w-full bg-slate-50 border border-slate-250 rounded-xl px-3 py-2.5 text-xs text-slate-800 font-bold focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 cursor-pointer"
               >
                 <option value="Rampur Warriors">Rampur Warriors</option>
                 <option value="Malgudi Stars">Malgudi Stars</option>
@@ -145,11 +153,11 @@ export default function TournamentsView({ fixtures, onAddFixture }: TournamentsV
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[10px] font-black uppercase text-slate-300">Team 2 (Away)</label>
+              <label className="text-[10px] font-black uppercase text-slate-500 tracking-wider">Team 2 (Away)</label>
               <select
                 value={team2}
                 onChange={e => setTeam2(e.target.value)}
-                className="w-full bg-black border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
+                className="w-full bg-slate-50 border border-slate-250 rounded-xl px-3 py-2.5 text-xs text-slate-800 font-bold focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 cursor-pointer"
               >
                 <option value="Rampur Warriors">Rampur Warriors</option>
                 <option value="Malgudi Stars">Malgudi Stars</option>
@@ -159,32 +167,35 @@ export default function TournamentsView({ fixtures, onAddFixture }: TournamentsV
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[10px] font-black uppercase text-slate-300">Match Date</label>
+              <label className="text-[10px] font-black uppercase text-slate-500 tracking-wider">Match Date</label>
               <input
                 type="text"
                 value={date}
                 onChange={e => setDate(e.target.value)}
-                className="w-full bg-black border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
+                placeholder="e.g. Jun 29, 2026"
+                className="w-full bg-slate-50 border border-slate-250 rounded-xl px-3 py-2.5 text-xs text-slate-800 font-bold focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500"
               />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[10px] font-black uppercase text-slate-300">Local Timing</label>
+              <label className="text-[10px] font-black uppercase text-slate-500 tracking-wider">Local Timing</label>
               <input
                 type="text"
                 value={time}
                 onChange={e => setTime(e.target.value)}
-                className="w-full bg-black border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
+                placeholder="e.g. 4:30 PM IST"
+                className="w-full bg-slate-50 border border-slate-250 rounded-xl px-3 py-2.5 text-xs text-slate-800 font-bold focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500"
               />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[10px] font-black uppercase text-slate-300">Arena Ground Venue</label>
+              <label className="text-[10px] font-black uppercase text-slate-500 tracking-wider">Arena Ground Venue</label>
               <input
                 type="text"
                 value={venue}
                 onChange={e => setVenue(e.target.value)}
-                className="w-full bg-black border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
+                placeholder="e.g. Rampur School Arena"
+                className="w-full bg-slate-50 border border-slate-250 rounded-xl px-3 py-2.5 text-xs text-slate-800 font-bold focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500"
               />
             </div>
           </div>
@@ -192,24 +203,24 @@ export default function TournamentsView({ fixtures, onAddFixture }: TournamentsV
           <div className="flex justify-end pt-2">
             <button
               type="submit"
-              className="bg-[#ccff00] hover:bg-[#bbf000] text-[#061a12] font-black uppercase tracking-widest text-[10px] px-5 py-3 rounded-lg shadow"
+              className="bg-blue-600 hover:bg-blue-750 text-white font-black uppercase tracking-wider text-xs px-6 py-3.5 rounded-xl shadow cursor-pointer transition-all duration-150"
             >
-              COMMIT & BROADCAST SCHEDULING
+              Commit & Schedule Match
             </button>
           </div>
         </form>
       )}
 
-      {/* TOURNAMENTS CHANGER BUTTONS */}
-      <div className="flex gap-2">
+      {/* TOURNAMENTS CHANGER TABS */}
+      <div className="flex flex-wrap gap-2.5 border-b border-slate-200 pb-4">
         {TOURNAMENTS.map(cup => (
           <button
             key={cup.id}
             onClick={() => setSelectedCup(cup.id as any)}
-            className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all border ${
+            className={`px-5 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all border cursor-pointer ${
               selectedCup === cup.id
-                ? 'bg-[#ccff00]/10 border-[#ccff00] text-[#ccff00] shadow-md shadow-[#ccff00]/5'
-                : 'bg-black/20 border-white/10 text-slate-400 hover:text-white'
+                ? 'bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-500/10'
+                : 'bg-white border-slate-200 text-slate-650 hover:bg-slate-50 hover:text-slate-900'
             }`}
           >
             {cup.name}
@@ -217,48 +228,56 @@ export default function TournamentsView({ fixtures, onAddFixture }: TournamentsV
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         
-        {/* Left 2 Columns: Points Table & Awards list */}
-        <div className="lg:col-span-2 space-y-6">
-          <div className="bg-black/30 p-6 border border-white/10 rounded-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-white/5 pb-2">
-              <h3 className="font-display text-sm font-black text-rose-300 uppercase tracking-wider">
-                🏆 {selectedCup === 'KHALSA' ? 'PANCHAYAT CO-HEIR TABLE' : 'VPL OFFICIAL POINTS RATING'}
-              </h3>
-              <span className="text-[9px] text-slate-450 uppercase tracking-widest font-mono">
-                Click Live Win to Simulate Points Increments
+        {/* Left Columns: Points Table & Awards list */}
+        <div className="lg:col-span-8 space-y-6">
+          
+          {/* Points Table Card */}
+          <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6 space-y-5 text-left">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-slate-100 pb-3.5 gap-2">
+              <div>
+                <h3 className="font-display text-sm font-black text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                  <span className="text-blue-600">🏆</span> {selectedCup === 'KHALSA' ? 'PANCHAYAT CO-HEIR STANDINGS' : 'VPL OFFICIAL POINTS RATING'}
+                </h3>
+                <p className="text-[10px] text-slate-400 mt-0.5 uppercase font-bold tracking-wider">
+                  Official ranking of teams for the current tournament stages
+                </p>
+              </div>
+              <span className="text-[9px] bg-slate-100 text-slate-500 px-2 py-1 rounded-md font-mono font-black uppercase tracking-wider shrink-0 select-none">
+                SIM ENABLED
               </span>
             </div>
 
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse text-xs font-mono">
                 <thead>
-                  <tr className="border-b border-white/10 text-slate-500 uppercase text-[9px] font-black tracking-widest">
-                    <th className="px-4 py-2 font-sans">TEAM POSITION</th>
-                    <th className="px-3 py-2 text-center">P</th>
-                    <th className="px-3 py-2 text-center">W</th>
-                    <th className="px-3 py-2 text-center">L</th>
-                    <th className="px-4 py-2 text-center text-[#ccff00]">PTS</th>
-                    <th className="px-4 py-2 text-right">NRR</th>
-                    <th className="px-4 py-2 text-center font-sans">SIM OPERATIVE</th>
+                  <tr className="border-b border-slate-200 text-slate-400 uppercase text-[9px] font-black tracking-widest bg-slate-50/50">
+                    <th className="px-4 py-3 font-sans font-black text-slate-600">TEAM POSITION</th>
+                    <th className="px-3 py-3 text-center">PLAYED</th>
+                    <th className="px-3 py-3 text-center">WON</th>
+                    <th className="px-3 py-3 text-center">LOST</th>
+                    <th className="px-4 py-3 text-center text-blue-600 font-extrabold bg-blue-50/20">PTS</th>
+                    <th className="px-4 py-3 text-right">NRR</th>
+                    <th className="px-4 py-3 text-center font-sans font-black text-slate-600">SIMULATE WIN</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-white/5">
+                <tbody className="divide-y divide-slate-100 text-slate-750">
                   {pointsTable.map((row, index) => (
-                    <tr key={index} className="hover:bg-white/5 text-slate-300">
-                      <td className="px-4 py-3 font-sans font-black text-white uppercase text-xs tracking-wide">
-                        {index + 1}. {row.team}
+                    <tr key={index} className="hover:bg-slate-50/60 transition-colors">
+                      <td className="px-4 py-3.5 font-sans font-extrabold text-slate-900 uppercase text-xs tracking-wide">
+                        <span className="inline-block text-slate-400 mr-2 font-mono text-[11px]">{index + 1}.</span>
+                        {row.team}
                       </td>
-                      <td className="px-3 py-3 text-center">{row.played}</td>
-                      <td className="px-3 py-3 text-center text-emerald-400">{row.won}</td>
-                      <td className="px-3 py-3 text-center text-red-400">{row.lost}</td>
-                      <td className="px-4 py-3 text-center font-black text-white bg-[#ccff00]/5">{row.pts}</td>
-                      <td className="px-4 py-3 text-right">{row.nrr}</td>
-                      <td className="px-4 py-3 text-center font-sans">
+                      <td className="px-3 py-3.5 text-center text-slate-650 font-bold">{row.played}</td>
+                      <td className="px-3 py-3.5 text-center font-black text-emerald-600">{row.won}</td>
+                      <td className="px-3 py-3.5 text-center text-rose-500 font-semibold">{row.lost}</td>
+                      <td className="px-4 py-3.5 text-center font-black text-blue-700 bg-blue-50/30 font-semibold">{row.pts}</td>
+                      <td className="px-4 py-3.5 text-right text-slate-600 font-medium">{row.nrr}</td>
+                      <td className="px-4 py-3.5 text-center font-sans">
                         <button
                           onClick={() => recordSimulatedWin(index)}
-                          className="bg-[#ccff00]/10 border border-[#ccff00]/15 hover:bg-[#ccff00] text-[#ccff05] hover:text-[#061a12] text-[9px] font-black uppercase tracking-wider py-1 px-2.5 rounded transition-all"
+                          className="bg-blue-50 border border-blue-200 hover:bg-blue-650 text-blue-700 hover:text-white text-[10px] font-black uppercase tracking-wider py-1 px-3 rounded-lg transition-all cursor-pointer"
                         >
                           +1 Win
                         </button>
@@ -270,55 +289,81 @@ export default function TournamentsView({ fixtures, onAddFixture }: TournamentsV
             </div>
           </div>
 
-          <div className="bg-black/30 p-6 border border-white/10 rounded-2xl space-y-4">
-            <h4 className="font-display text-sm font-black text-white uppercase tracking-wide border-b border-white/5 pb-2 flex items-center gap-2">
-              <Award className="h-4.5 w-4.5 text-[#ccff00]" />
-              End-of-Season Panchayat Awards Allocation
+          {/* Awards Section */}
+          <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6 space-y-4 text-left">
+            <h4 className="font-display text-sm font-black text-slate-900 uppercase tracking-wide border-b border-slate-150 pb-2.5 flex items-center gap-2">
+              <Award className="h-4.5 w-4.5 text-blue-600" />
+              <span>Current Season Awards Allocation</span>
             </h4>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-              <div className="bg-white/5 p-4 rounded-xl border border-white/5">
-                <span className="block font-black text-[#ccff00] uppercase tracking-wide text-[10px]">🥇 MVP 'DORA' MEDAL</span>
-                <p className="text-slate-400 mt-1 leading-relaxed">Winner gets standard dairy cattle buffalo + custom golden willow bat presentation.</p>
+              <div className="bg-slate-50 border border-slate-150 p-4 rounded-xl relative overflow-hidden">
+                <span className="block font-black text-blue-700 uppercase tracking-wider text-[10px]">🥇 MVP 'DORA' MEDAL</span>
+                <p className="text-slate-600 mt-1 pb-1 font-semibold leading-relaxed">
+                  Winner benefits from a dedicated dairy buffalo calf gifted by village sponsors + a custom premium english willow batting bat presentation.
+                </p>
               </div>
 
-              <div className="bg-white/5 p-4 rounded-xl border border-white/5">
-                <span className="block font-black text-[#ccff00] uppercase tracking-wide text-[10px]">🔥 SIXER OF THE YEAR</span>
-                <p className="text-slate-400 mt-1 leading-relaxed">Local bakery sponsored free sweet delicacies (Laddoo packs) for 1 full season year.</p>
+              <div className="bg-slate-50 border border-slate-150 p-4 rounded-xl relative overflow-hidden">
+                <span className="block font-black text-indigo-700 uppercase tracking-wider text-[10px]">🔥 SIXER OF THE YEAR SOUVENIR</span>
+                <p className="text-slate-600 mt-1 pb-1 font-semibold leading-relaxed">
+                  Local sweet-shop sponsored fresh confectionaries (premium Laddoo treat packs) delivered directly to player’s home for 1 full season year!
+                </p>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Right Column: Registered Teams & Venue Summaries */}
-        <div className="space-y-6">
-          <div className="bg-black/30 p-6 border border-white/10 rounded-2xl space-y-4">
-            <h3 className="font-display text-base font-black text-white uppercase tracking-tight flex items-center gap-2 border-b border-white/5 pb-2">
-              <Users className="h-4.5 w-4.5 text-[#ccff00]" />
-              Participating Teams
+        {/* Right Columns: Registered Teams & Rulebook */}
+        <div className="lg:col-span-4 space-y-6">
+          
+          {/* Registered Teams card */}
+          <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 text-left">
+            <h3 className="font-display text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-100 pb-3 mb-4">
+              <Users className="h-4 w-4 text-blue-600" />
+              <span>Participating Teams</span>
             </h3>
 
-            <div className="space-y-2 text-xs">
-              {INITIAL_POINTS.map((row, idx) => (
-                <div key={idx} className="flex items-center justify-between p-2.5 bg-white/5 border border-white/5 rounded-lg">
-                  <span className="font-black text-white uppercase tracking-wider">{row.team}</span>
-                  <span className="text-[10px] text-slate-500 font-mono">SEEDED</span>
-                </div>
-              ))}
+            <div className="space-y-2.5 text-xs">
+              {INITIAL_POINTS.map((row, idx) => {
+                const colors = idx === 0 ? 'from-orange-500 to-amber-500' : idx === 1 ? 'from-blue-500 to-indigo-600' : idx === 2 ? 'from-emerald-500 to-teal-600' : 'from-red-500 to-rose-600';
+                return (
+                  <div key={idx} className="flex items-center justify-between p-3 bg-slate-50 border border-slate-150 rounded-xl">
+                    <div className="flex items-center gap-2">
+                      <span className={`h-2 w-2 rounded-full bg-gradient-to-r ${colors}`} />
+                      <span className="font-extrabold text-slate-800 uppercase tracking-wide">{row.team}</span>
+                    </div>
+                    <span className="text-[9px] bg-blue-50 text-blue-700 border border-blue-100 font-mono font-black uppercase px-2 py-0.5 rounded">
+                      SEEDED
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           </div>
 
-          <div className="bg-black/30 p-6 border border-white/10 rounded-2xl relative overflow-hidden">
-            <div className="absolute right-0 bottom-0 h-24 w-24 bg-[#ccff00]/5 rounded-full blur-2xl pointer-events-none" />
+          {/* Rulebook card */}
+          <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 text-left relative overflow-hidden">
+            <div className="absolute right-0 bottom-0 h-24 w-24 bg-blue-50/50 rounded-full blur-2xl pointer-events-none" />
             
-            <h3 className="font-display text-base font-black text-white uppercase tracking-tight flex items-center gap-2 border-b border-white/5 pb-2">
-              <Star className="h-4.5 w-4.5 text-[#ccff00] fill-current" />
-              Tournament Rulebook Check
+            <h3 className="font-display text-xs font-black text-slate-900 uppercase tracking-wide flex items-center gap-2 border-b border-slate-100 pb-3 mb-3.5">
+              <BookOpen className="h-4 w-4 text-blue-600" />
+              <span>Rulebook & Conduct Regulations</span>
             </h3>
-            <p className="text-xs text-slate-400 leading-relaxed space-y-1">
-              • Under standard village tape-ball regulations, bowling is restricted to maximum 3 overs per deliverer. Wide balls grant 1 extra score and must be rebowled. Pitch width corresponds to exactly 22 steps.
-            </p>
+            
+            <div className="space-y-2.5 text-xs text-slate-600 font-semibold leading-relaxed">
+              <p className="border-l-2 border-blue-400 pl-2">
+                Under standard Panchayat tape-ball cricket laws, bowing quotas are strictly restricted to maximum <strong>3 overs</strong> per player.
+              </p>
+              <p className="border-l-2 border-blue-400 pl-2">
+                Wide deliveries grant exactly <strong>1 extra run</strong> and must be bowled again. No-balls also provide a free-hit on the next ball!
+              </p>
+              <p className="border-l-2 border-blue-400 pl-2">
+                Pitch boundaries are accurately set to <strong>22 footsteps</strong>, marked clearly by local chalk lines prior to gameplay.
+              </p>
+            </div>
           </div>
+
         </div>
 
       </div>
