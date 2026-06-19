@@ -1,0 +1,6 @@
+{
+  "name": "Apna Cricket",
+  "description": "A modern live score, real-time match updater, fixtures, and detailed player statistics tracker for village and amateur cricket matches.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
