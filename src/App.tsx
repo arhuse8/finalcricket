@@ -13,6 +13,8 @@ import TournamentsView from './components/TournamentsView';
 import WagonWheel from './components/WagonWheel';
 import Footer from './components/landing/Footer';
 import MatchesListView from './components/MatchesListView';
+import { isSupabaseConfigured } from './lib/supabase';
+import { supabaseService } from './lib/supabaseService';
 
 import { Match, Player, Fixture } from './types';
 import { INITIAL_FIXTURES, INITIAL_PLAYERS, MOCK_LIVE_MATCH } from './mockData';
@@ -73,6 +75,18 @@ export default function App() {
     setCurrentView('home');
   };
 
+  const INITIAL_TEAMS_LIST = [
+    { id: 'RAMPUR', name: 'Rampur Warriors', short: 'RMP', color: 'from-orange-500 to-amber-600', captain: "Raju 'Sixer' Yadav", venue: "Rampur Local School Ground", rank: 1, trophies: 3 },
+    { id: 'MALGUDI', name: 'Malgudi Stars', short: 'MGD', color: 'from-blue-500 to-indigo-600', captain: 'Kiran Kumar', venue: 'Malgudi Lake View Ground', rank: 2, trophies: 2 },
+    { id: 'DANGAL', name: 'Dangal Kings', short: 'DGL', color: 'from-red-500 to-rose-600', captain: 'Sunny "Gabru" Singh', venue: 'Panchayat Ground', rank: 3, trophies: 1 },
+    { id: 'GULLY', name: 'Gully Raiders', short: 'GLY', color: 'from-emerald-500 to-teal-600', captain: 'Bablu "Helicopter" Dhoni', venue: 'Rampur Meadows Ground', rank: 4, trophies: 4 }
+  ];
+
+  const INITIAL_TOURNAMENTS_LIST = [
+    { id: 'KHALSA', name: 'Apna Village Khalsa Cup', organizer: 'Panchayat Council', balls: 'Heavy Tape Ball', duration: '12 Overs', count: 4, prize: 'Cow Dairy Calf & Trophy' },
+    { id: 'VPL', name: 'Village Premier League (VPL)', organizer: 'Malgudi Meadows Committee', balls: 'Leather Ball', duration: '12 Overs', count: 4, prize: 'English Willow Kit' }
+  ];
+
   // Initialize States elegantly from LocalStorage to keep things persistent
   const [players, setPlayers] = useState<Player[]>(() => {
     try {
@@ -101,6 +115,24 @@ export default function App() {
     }
   });
 
+  const [teams, setTeams] = useState<any[]>(() => {
+    try {
+      const stored = localStorage.getItem('apna_cricket_teams_db');
+      return stored ? JSON.parse(stored) : INITIAL_TEAMS_LIST;
+    } catch {
+      return INITIAL_TEAMS_LIST;
+    }
+  });
+
+  const [tournaments, setTournaments] = useState<any[]>(() => {
+    try {
+      const stored = localStorage.getItem('apna_cricket_tournaments_db');
+      return stored ? JSON.parse(stored) : INITIAL_TOURNAMENTS_LIST;
+    } catch {
+      return INITIAL_TOURNAMENTS_LIST;
+    }
+  });
+
   // Sync back to local storage whenever states modify
   useEffect(() => {
     localStorage.setItem(LOCAL_STORAGE_PLAYERS_KEY, JSON.stringify(players));
@@ -113,6 +145,87 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem(LOCAL_STORAGE_FIXTURES_KEY, JSON.stringify(fixtures));
   }, [fixtures]);
+
+  useEffect(() => {
+    localStorage.setItem('apna_cricket_teams_db', JSON.stringify(teams));
+  }, [teams]);
+
+  useEffect(() => {
+    localStorage.setItem('apna_cricket_tournaments_db', JSON.stringify(tournaments));
+  }, [tournaments]);
+
+  // Synchronise state with real Supabase Database entries on startup / boot
+  useEffect(() => {
+    async function syncSupabaseData() {
+      if (!isSupabaseConfigured) return;
+      try {
+        const dbTeamsObj = await supabaseService.getTeams();
+        if (dbTeamsObj && dbTeamsObj.length > 0) {
+          const mappedTeams = dbTeamsObj.map((t: any) => ({
+            id: t.team_id,
+            name: t.team_name,
+            short: t.short_name || t.team_name.substring(0, 3).toUpperCase(),
+            color: t.logo_color || 'from-blue-500 to-indigo-600',
+            captain: t.captain_name || 'Team Captain',
+            venue: t.home_venue || 'Local Panchayat Ground',
+            rank: t.rank || 1,
+            trophies: t.trophies || 0
+          }));
+          setTeams(mappedTeams);
+        }
+
+        const dbPlayersObj = await supabaseService.getPlayers();
+        if (dbPlayersObj) {
+          const mappedPlayers = dbPlayersObj.map((p: any) => ({
+            id: p.player_id,
+            name: p.full_name,
+            teamId: p.team_id || 'RAMPUR',
+            role: p.playing_role || 'All-Rounder',
+            battingStyle: p.batting_style || 'Right-hand bat',
+            bowlingStyle: p.bowling_style || 'Right-arm fast',
+            stats: {
+              matches: p.matches_played || 0,
+              runs: p.total_runs || 0,
+              highestScore: p.highest_score || 0,
+              average: p.batting_average || 0,
+              strikeRate: p.strike_rate || 0,
+              fifties: p.fifties || 0,
+              hundreds: p.hundreds || 0,
+              wickets: p.wickets_taken || 0,
+              bestBowling: p.best_bowling || '0/0',
+              economy: p.bowling_economy || 6.0
+            }
+          }));
+          setPlayers(mappedPlayers);
+        }
+
+        const dbMatchesObj = await supabaseService.getMatches();
+        if (dbMatchesObj) {
+          const upcomingFixtures = dbMatchesObj
+            .filter((m: any) => m.match_status === 'upcoming')
+            .map((m: any) => ({
+              id: m.match_id,
+              team1Name: m.team_a_name || 'Team A',
+              team2Name: m.team_b_name || 'Team B',
+              team1Short: m.team_a_short || 'T1',
+              team2Short: m.team_b_short || 'T2',
+              team1Color: 'from-orange-500 to-amber-600',
+              team2Color: 'from-blue-500 to-indigo-600',
+              date: m.match_date || 'TBD',
+              time: 'TBD',
+              venue: m.venue || m.ground_name || 'Local Arena',
+              tournamentName: m.match_title || 'Local Championship'
+            }));
+          setFixtures(upcomingFixtures);
+        }
+      } catch (e) {
+        console.error('Error synchronising with Supabase on boot:', e);
+      }
+    }
+    if (isBooted) {
+      syncSupabaseData();
+    }
+  }, [isBooted]);
 
   // Real-time statistics updater callback
   const handlePlayerStatUpdate = (
@@ -166,6 +279,11 @@ export default function App() {
   // Recruit new player callback
   const handleAddPlayer = (newPlayer: Player) => {
     setPlayers(prev => [newPlayer, ...prev]);
+  };
+
+  // Delete recruited player callback
+  const handleDeletePlayer = (playerId: string) => {
+    setPlayers(prev => prev.filter(p => p.id !== playerId));
   };
 
   // Callback to add dynamic scheduled fixtures
@@ -238,10 +356,15 @@ export default function App() {
       localStorage.removeItem(LOCAL_STORAGE_PLAYERS_KEY);
       localStorage.removeItem(LOCAL_STORAGE_FIXTURES_KEY);
       localStorage.removeItem(LOCAL_STORAGE_USER_KEY);
+      localStorage.removeItem('apna_cricket_teams_db');
+      localStorage.removeItem('apna_cricket_tournaments_db');
+      localStorage.removeItem('apna_cricket_drafted_teams');
       
       setLiveMatch(MOCK_LIVE_MATCH);
       setPlayers(INITIAL_PLAYERS);
       setFixtures(INITIAL_FIXTURES);
+      setTeams(INITIAL_TEAMS_LIST);
+      setTournaments(INITIAL_TOURNAMENTS_LIST);
       setUsername(null);
       
       setCurrentView('home');
@@ -304,6 +427,9 @@ export default function App() {
             <TeamsView
               players={players}
               onAddPlayer={handleAddPlayer}
+              onDeletePlayer={handleDeletePlayer}
+              teams={teams}
+              setTeams={setTeams}
             />
           )}
 
@@ -311,6 +437,9 @@ export default function App() {
             <TournamentsView
               fixtures={fixtures}
               onAddFixture={handleAddFixture}
+              tournaments={tournaments}
+              setTournaments={setTournaments}
+              teams={teams}
             />
           )}
 
@@ -341,6 +470,7 @@ export default function App() {
             <PlayerStatsView
               players={players}
               onAddPlayer={handleAddPlayer}
+              teams={teams}
             />
           )}
 
@@ -348,7 +478,7 @@ export default function App() {
       </main>
 
       {/* FOOTER */}
-      <Footer />
+      <Footer setCurrentView={setCurrentView} />
     </div>
   );
 }

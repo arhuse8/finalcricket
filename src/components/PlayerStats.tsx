@@ -9,6 +9,7 @@ import {
 interface PlayerStatsViewProps {
   players: Player[];
   onAddPlayer?: (player: Player) => void;
+  teams: any[];
 }
 
 // Full interactive model for the players available in the scorecard
@@ -31,7 +32,7 @@ interface InteractivePlayerForm {
   };
 }
 
-export default function PlayerStatsView({ players, onAddPlayer }: PlayerStatsViewProps) {
+export default function PlayerStatsView({ players, onAddPlayer, teams }: PlayerStatsViewProps) {
   // Sidebar state
   const [selectedCategory, setSelectedCategory] = useState<'overview' | 'trending' | 'players' | 'teams' | 'tournaments' | 'records' | 'insights' | 'compare'>('overview');
   
@@ -40,6 +41,16 @@ export default function PlayerStatsView({ players, onAddPlayer }: PlayerStatsVie
   const [searchQuery, setSearchQuery] = useState('');
   const [voicePlaying, setVoicePlaying] = useState(false);
   const [language, setLanguage] = useState('English (India)');
+
+  // Form states for recruitment of custom local heroes
+  const [newPlayerName, setNewPlayerName] = useState('');
+  const [newPlayerTeamId, setNewPlayerTeamId] = useState(teams[0]?.id || 'RAMPUR');
+  const [newPlayerRole, setNewPlayerRole] = useState<'Batsman' | 'Bowler' | 'All-Rounder' | 'Wicket-Keeper'>('All-Rounder');
+  const [newPlayerBatting, setNewPlayerBatting] = useState<'Right-hand bat' | 'Left-hand bat'>('Right-hand bat');
+  const [newPlayerBowling, setNewPlayerBowling] = useState<'Right-arm fast' | 'Right-arm spin' | 'Left-arm fast' | 'Left-arm spin'>('Right-arm fast');
+  const [initialRuns, setInitialRuns] = useState<number>(0);
+  const [initialWickets, setInitialWickets] = useState<number>(0);
+  const [recruitmentDoneMsg, setRecruitmentDoneMsg] = useState('');
 
   // All interactive players with their dataset corresponding to the screenshot details
   const playersFormDatabase: Record<string, InteractivePlayerForm> = {
@@ -115,6 +126,70 @@ export default function PlayerStatsView({ players, onAddPlayer }: PlayerStatsVie
       scores: [3, 1, 4, 0, 2, 5, 2, 2, 3, 4],
       traits: { batting: 25, power: 45, consistency: 98, fitness: 96, bowling: 99 }
     }
+  };
+
+  // Merge custom players from the global live state so they are fully interactive
+  players.forEach((p) => {
+    // Generate team initials or lookup from teams
+    const teamObj = teams.find(t => t.id === p.teamId);
+    const teamShort = teamObj ? teamObj.short : p.teamId.substring(0, 3).toUpperCase();
+    
+    if (!playersFormDatabase[p.name]) {
+      playersFormDatabase[p.name] = {
+        name: p.name,
+        avatar: p.role === 'Bowler' ? '♣️' : p.role === 'All-Rounder' ? '⚡' : '🦁',
+        team: teamShort,
+        role: p.role,
+        score: p.stats.runs,
+        avg: p.stats.average.toString(),
+        sr: p.stats.strikeRate.toString(),
+        status: 'DYNAMIC ⭐',
+        scores: [p.stats.highestScore],
+        traits: {
+          batting: p.role === 'Bowler' ? 20 : 82,
+          power: p.role === 'Bowler' ? 15 : 78,
+          consistency: 75,
+          fitness: 89,
+          bowling: p.role === 'Batsman' ? 10 : 80
+        }
+      };
+    }
+  });
+
+  const handleRecruitSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPlayerName.trim() || !onAddPlayer) return;
+
+    const newP: Player = {
+      id: `player-dynamic-${Date.now()}`,
+      name: newPlayerName,
+      teamId: newPlayerTeamId,
+      role: newPlayerRole,
+      battingStyle: newPlayerBatting,
+      bowlingStyle: newPlayerBowling,
+      stats: {
+        matches: initialRuns > 0 || initialWickets > 0 ? 1 : 0,
+        runs: initialRuns,
+        highestScore: initialRuns,
+        average: initialRuns,
+        strikeRate: initialRuns > 0 ? 132 : 0,
+        fifties: initialRuns >= 50 && initialRuns < 100 ? 1 : 0,
+        hundreds: initialRuns >= 100 ? 1 : 0,
+        wickets: initialWickets,
+        bestBowling: initialWickets > 0 ? `${initialWickets}/15` : '0/0',
+        economy: initialWickets > 0 ? 6.2 : 0
+      }
+    };
+
+    onAddPlayer(newP);
+    setRecruitmentDoneMsg(`Local Pro "${newPlayerName}" successfully drafted to Roster! ⚡`);
+    setNewPlayerName('');
+    setInitialRuns(0);
+    setInitialWickets(0);
+
+    setTimeout(() => {
+      setRecruitmentDoneMsg('');
+    }, 3000);
   };
 
   const currentPlayer = playersFormDatabase[selectedPlayerName] || playersFormDatabase['Virat Kohli'];

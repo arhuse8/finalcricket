@@ -4,18 +4,26 @@ import { LANDING_CONFIG } from '../../config/landingConfig';
 
 interface UpcomingTournamentsBentoProps {
   onSelectView: (view: any) => void;
+  teamsCount?: number;
+  matchesCount?: number;
+  groundsCount?: number;
 }
 
-export default function UpcomingTournamentsBento({ onSelectView }: UpcomingTournamentsBentoProps) {
+export default function UpcomingTournamentsBento({ 
+  onSelectView, 
+  teamsCount = 0, 
+  matchesCount = 0, 
+  groundsCount = 0 
+}: UpcomingTournamentsBentoProps) {
   const { tournamentPromo } = LANDING_CONFIG;
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 p-5 space-y-4 hover:shadow-md transition-shadow relative overflow-hidden flex flex-col justify-between text-left h-full">
-      <div className="space-y-4">
+    <div className="bg-white rounded-2xl border border-slate-200 p-5 space-y-4 hover:shadow-md transition-shadow relative overflow-hidden flex flex-col justify-between text-left h-full font-sans">
+      <div className="space-y-4 w-full">
         {/* Module Header */}
         <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
           <h4 className="font-display font-black text-slate-800 text-xs uppercase tracking-wider flex items-center gap-1.5">
-            <span className="text-blue-600">🏆</span> Upcoming Tournaments
+            <span className="text-blue-600">🏆</span> Active Grassroot Stats
           </h4>
           <span 
             onClick={() => onSelectView('tournaments')}
@@ -31,14 +39,14 @@ export default function UpcomingTournamentsBento({ onSelectView }: UpcomingTourn
           style={{ backgroundImage: `linear-gradient(to top, rgba(0, 0, 0, 0.95), rgba(0, 0, 0, 0.4)), url(${tournamentPromo.bannerUrl})` }}
         >
           <span className="absolute top-2 right-2 bg-blue-600 text-[8px] font-black tracking-widest px-1.5 py-0.5 rounded uppercase">
-            {tournamentPromo.badge}
+            ACTIVE SYSTEM
           </span>
           <div className="space-y-0.5">
             <p className="text-[10px] text-amber-300 uppercase font-black tracking-widest leading-none">
-              {tournamentPromo.subtitle}
+              APNA CRICKET
             </p>
             <h5 className="font-display font-black text-xs sm:text-sm uppercase tracking-tight leading-none">
-              {tournamentPromo.year}
+              LEAGUE SYSTEM 2026
             </h5>
           </div>
         </div>
@@ -47,31 +55,31 @@ export default function UpcomingTournamentsBento({ onSelectView }: UpcomingTourn
         <div className="grid grid-cols-3 gap-1 divide-x divide-slate-100 text-center font-mono text-[10px]">
           <div>
             <span className="block text-slate-400 uppercase text-[8px] font-bold">Teams</span>
-            <span className="font-black text-slate-800">{tournamentPromo.teamsCount} Teams</span>
+            <span className="font-black text-slate-800">{teamsCount} Teams</span>
           </div>
           <div>
             <span className="block text-slate-400 uppercase text-[8px] font-bold">Games</span>
-            <span className="font-black text-slate-800">{tournamentPromo.matchesCount} Matches</span>
+            <span className="font-black text-slate-800">{matchesCount} Matches</span>
           </div>
           <div>
             <span className="block text-slate-400 uppercase text-[8px] font-bold">Grounds</span>
-            <span className="font-black text-blue-600">{tournamentPromo.groundsCount} Grounds</span>
+            <span className="font-black text-blue-600">{groundsCount || 1} Grounds</span>
           </div>
         </div>
       </div>
 
-      {/* Primary red action banner */}
+      {/* Primary blue action banner */}
       <div className="space-y-3 mt-3">
         <div className="text-[10px] text-slate-400 font-mono flex items-center justify-center gap-1.5">
           <Calendar className="h-3 w-3 text-blue-500" />
-          <span>{tournamentPromo.dates}</span>
+          <span>Real-time DB Active Connection</span>
         </div>
 
         <button
           onClick={() => onSelectView('tournaments')}
           className="w-full bg-blue-600 hover:bg-blue-750 text-white font-black uppercase text-[10px] tracking-widest py-3 rounded-xl block text-center transition-all cursor-pointer shadow-sm"
         >
-          VIEW TOURNAMENT
+          VIEW LEAGUES
         </button>
       </div>
     </div>

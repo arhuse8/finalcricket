@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Award, Calendar, RefreshCw, Trophy, Tv, Users, Home, Shield, User, LogIn, Search, Star, MessageSquare, Menu, X } from 'lucide-react';
+import { Award, Calendar, RefreshCw, Trophy, Tv, Users, Home, Shield, User, LogIn, Search, Star, MessageSquare, Menu, X, KeyRound } from 'lucide-react';
 import { Match } from '../types';
 
 interface NavbarProps {
@@ -56,15 +56,28 @@ export default function Navbar({ currentView, setCurrentView, liveMatch, onReset
             <span className="text-amber-700 font-extrabold uppercase tracking-wider">🔥 TOP BATSMAN: {liveMatch.miniScore.batsman1.name} {liveMatch.miniScore.batsman1.runs}* ({liveMatch.miniScore.batsman1.balls}b)</span>
           </div>
         </div>
-        <button
-          onClick={onReset}
-          className="flex items-center gap-1 px-4 bg-blue-100 hover:bg-blue-200 text-blue-700 border-l border-slate-200 transition-colors text-[10px] uppercase font-black tracking-widest cursor-pointer"
-          title="Reset tournament data to original seed"
-          id="btn-navbar-reset"
-        >
-          <RefreshCw className="h-3 w-3" />
-          <span className="hidden sm:inline">Reset Seeds</span>
-        </button>
+        {username ? (
+          <button
+            onClick={() => handleNavClick('dashboard')}
+            className="flex items-center gap-1.5 px-4 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 border-l border-slate-200 transition-colors text-[10px] uppercase font-black tracking-widest cursor-pointer font-sans"
+            title={`Check dashboard as ${username}`}
+            id="btn-navbar-account"
+          >
+            <User className="h-3 w-3 text-emerald-700 animate-pulse" />
+            <span className="hidden sm:inline">User Profile:</span>
+            <span className="font-extrabold max-w-[100px] truncate">{username}</span>
+          </button>
+        ) : (
+          <button
+            onClick={() => handleNavClick('auth')}
+            className="flex items-center gap-1.5 px-4 bg-[#ccff00]/10 hover:bg-[#ccff00]/25 text-[#1d4ed8] border-l border-slate-200 transition-colors text-[10px] uppercase font-black tracking-widest cursor-pointer font-sans font-bold"
+            title="Authenticate Profile / Register Player"
+            id="btn-navbar-auth-entry"
+          >
+            <KeyRound className="h-3 w-3 text-blue-600" />
+            <span>Login / Join Now</span>
+          </button>
+        )}
       </div>
 
       {/* Main navigation header */}

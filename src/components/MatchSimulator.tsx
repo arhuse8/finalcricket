@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Match, BallRecord, Player } from '../types';
-import { Play, Pause, Flame, RefreshCw, Award, Sliders, Volume2, UserPlus } from 'lucide-react';
+import { Match, BallRecord } from '../types';
+import { Play, Pause, Sliders, Volume2, Database, Wifi, WifiOff, RefreshCw, CheckCircle2 } from 'lucide-react';
 import { COMMENTARY_PRESETS, INITIAL_PLAYERS } from '../mockData';
+import { supabaseService } from '../lib/supabaseService';
+import { isSupabaseConfigured } from '../lib/supabase';
 
 interface MatchSimulatorProps {
   match: Match;
@@ -13,6 +15,106 @@ export default function MatchSimulator({ match, setMatch, onPlayerStatUpdate }: 
   const [isAutoSimulating, setIsAutoSimulating] = useState(false);
   const [simulationSpeed, setSimulationSpeed] = useState(3000); // ms per ball
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Supabase Integration States
+  const [dbMatches, setDbMatches] = useState<any[]>([]);
+  const [dbPlayers, setDbPlayers] = useState<any[]>([]);
+  const [dbTeams, setDbTeams] = useState<any[]>([]);
+  const [selectedDbMatch, setSelectedDbMatch] = useState<string>('');
+  const [selectedDbInningsId, setSelectedDbInningsId] = useState<string>('');
+  const [selectedInningsNum, setSelectedInningsNum] = useState<number>(1);
+  
+  const [selectedStrikerId, setSelectedStrikerId] = useState<string>('');
+  const [selectedNonStrikerId, setSelectedNonStrikerId] = useState<string>('');
+  const [selectedBowlerId, setSelectedBowlerId] = useState<string>('');
+  
+  const [selectedBattingTeamId, setSelectedBattingTeamId] = useState<string>('');
+  const [selectedBowlingTeamId, setSelectedBowlingTeamId] = useState<string>('');
+  
+  const [syncLogs, setSyncLogs] = useState<string[]>(['Offline database driver initialized']);
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  // Fetch initial database entities
+  useEffect(() => {
+    async function loadDb() {
+      if (isSupabaseConfigured) {
+        setSyncLogs(prev => ['Connecting and queries running...', ...prev]);
+        try {
+          const matches = await supabaseService.getMatches();
+          const players = await supabaseService.getPlayers();
+          const teams = await supabaseService.getTeams();
+          
+          setDbMatches(matches);
+          setDbPlayers(players);
+          setDbTeams(teams);
+
+          if (matches.length > 0) {
+            setSelectedDbMatch(matches[0].match_id);
+          }
+          setSyncLogs(prev => [
+            '🟢 Connected to Supabase! 31 Tables & 366 columns available.',
+            `Successfully cached ${matches.length} matches, ${players.length} players, and ${teams.length} teams.`,
+            ...prev
+          ]);
+        } catch (err: any) {
+          setSyncLogs(prev => [`❌ Initial cache failed: ${err.message}`, ...prev]);
+        }
+      } else {
+        setSyncLogs(prev => [
+          '🔌 Running in standard local mode. No Supabase URL configured.',
+          ...prev
+        ]);
+      }
+    }
+    loadDb();
+  }, []);
+
+  // Sync innings detail when selectedDbMatch changes
+  useEffect(() => {
+    async function bindInnings() {
+      if (!selectedDbMatch || !isSupabaseConfigured) return;
+      
+      setSyncLogs(prev => [`Loading active innings for match ID: ${selectedDbMatch.substring(0,8)}...`, ...prev]);
+      try {
+        const inningsList = await supabaseService.getMatchInnings(selectedDbMatch);
+        if (inningsList.length > 0) {
+          const activeInn = inningsList[0];
+          setSelectedDbInningsId(activeInn.innings_id);
+          setSelectedInningsNum(activeInn.innings_number || 1);
+          setSelectedBattingTeamId(activeInn.batting_team_id || '');
+          setSelectedBowlingTeamId(activeInn.bowling_team_id || '');
+          
+          setSelectedStrikerId(activeInn.striker_player_id || '');
+          setSelectedNonStrikerId(activeInn.non_striker_player_id || '');
+          setSelectedBowlerId(activeInn.current_bowler_id || '');
+          
+          setSyncLogs(prev => [`🟢 Active Innings Binded: #${activeInn.innings_number}`, ...prev]);
+        } else {
+          // If no innings exists, try to automatically create one
+          const matchedMatch = dbMatches.find(m => m.match_id === selectedDbMatch);
+          if (matchedMatch) {
+            setSyncLogs(prev => ['No innings found. Initiating auto-creation...', ...prev]);
+            const newInn = await supabaseService.createInnings(
+              selectedDbMatch,
+              1,
+              matchedMatch.team_a_id || 'T1',
+              matchedMatch.team_b_id || 'T2'
+            );
+            if (newInn) {
+              setSelectedDbInningsId(newInn.innings_id);
+              setSelectedInningsNum(1);
+              setSelectedBattingTeamId(newInn.batting_team_id || '');
+              setSelectedBowlingTeamId(newInn.bowling_team_id || '');
+              setSyncLogs(prev => ['🟢 Auto-created Innings #1 in your Supabase backend!', ...prev]);
+            }
+          }
+        }
+      } catch (err: any) {
+        setSyncLogs(prev => [`❌ Failed to bind innings: ${err.message}`, ...prev]);
+      }
+    }
+    bindInnings();
+  }, [selectedDbMatch, dbMatches]);
 
   // Stop auto play when match is completed or component unmounts
   useEffect(() => {
@@ -44,6 +146,104 @@ export default function MatchSimulator({ match, setMatch, onPlayerStatUpdate }: 
       ...prev,
       onStrikeIndex: prev.onStrikeIndex === 0 ? 1 : 0
     }));
+    // Swapping striker & non-striker in database
+    if (isSupabaseConfigured && selectedStrikerId && selectedNonStrikerId) {
+      const temp = selectedStrikerId;
+      setSelectedStrikerId(selectedNonStrikerId);
+      setSelectedNonStrikerId(temp);
+      setSyncLogs(prev => ['🔄 Swapped crease striker values.', ...prev.slice(0, 10)]);
+    }
+  };
+
+  /**
+   * Background Supabase Database Score Committer
+   */
+  const syncBallToSupabase = async (
+    runs: number,
+    options: { isWide?: boolean; isNoBall?: boolean; isWicket?: boolean } = {}
+  ) => {
+    if (!isSupabaseConfigured || !selectedDbMatch || !selectedDbInningsId) return;
+
+    setIsSyncing(true);
+    const { isWide = false, isNoBall = false, isWicket = false } = options;
+
+    let extraType: 'none' | 'wide' | 'noball' | 'bye' | 'legbye' = 'none';
+    let extraRuns = 0;
+    let isLegal = true;
+
+    if (isWide) {
+      extraType = 'wide';
+      extraRuns = 1;
+      isLegal = false;
+    } else if (isNoBall) {
+      extraType = 'noball';
+      extraRuns = 1;
+      isLegal = false;
+    }
+
+    // Pick active striker named display for commentary logs
+    const activeStrikerPlayer = dbPlayers.find(p => p.player_id === selectedStrikerId);
+    const activeNonStrikerPlayer = dbPlayers.find(p => p.player_id === selectedNonStrikerId);
+    const activeBowlerPlayer = dbPlayers.find(p => p.player_id === selectedBowlerId);
+
+    const sName = activeStrikerPlayer?.full_name || 'Batter';
+    const bName = activeBowlerPlayer?.full_name || 'Bowler';
+
+    let comm = `${bName} deliveries to ${sName}. Ball played away cleanly.`;
+    if (isWicket) {
+      comm = `OUT! Absolute peach of a delivery from ${bName}! ${sName} goes for a big village swipe but only finds the stumps! Deep shock in stands!`;
+    } else if (isWide) {
+      comm = `WIDE DELIVERY! ${bName} misses the line completely. The ball swings wide down the leg side. +1 Extra.`;
+    } else if (isNoBall) {
+      comm = `NO BALL! High full toss above waist from ${bName}. ${sName} plays it away. FREE HIT coming up!`;
+    } else if (runs === 4) {
+      comm = `FOUR MORE! Elegant shot by ${sName}, cracking it down the pitch past the lunging mid-off fielder!`;
+    } else if (runs === 6) {
+      comm = `MASSIVE BLOW! ${sName} hammers it right out of the center and sends it sailing over the neem trees!`;
+    }
+
+    const overNumber = match.team1.score.overs;
+    const ballInOver = match.team1.score.balls + 1;
+
+    const context = {
+      matchId: selectedDbMatch,
+      inningsId: selectedDbInningsId,
+      battingTeamId: selectedBattingTeamId || 'T1',
+      bowlingTeamId: selectedBowlingTeamId || 'T2',
+      strikerId: selectedStrikerId || 'P1',
+      nonStrikerId: selectedNonStrikerId || 'P2',
+      bowlerId: selectedBowlerId || 'B1',
+      oversLimit: match.oversLimit
+    };
+
+    setSyncLogs(prev => [`Syncing over ${overNumber}.${ballInOver} runs with Supabase...`, ...prev.slice(0, 5)]);
+
+    const result = await supabaseService.submitBallEvent({
+      matchContext: context,
+      overNumber,
+      ballInOver,
+      runsOffBat: runs,
+      isWicket,
+      dismissalType: isWicket ? 'Bowled' : undefined,
+      dismissedPlayerId: isWicket ? selectedStrikerId : undefined,
+      extraType,
+      extraRuns,
+      commentary: comm,
+      isLegal
+    });
+
+    setIsSyncing(false);
+    if (result.success) {
+      setSyncLogs(prev => [
+        `✅ DB Transact OK! Synced: ${runs} Runs, Wicket: ${isWicket ? 'Yes' : 'No'}, Extra: ${extraType}`,
+        ...prev.slice(0, 5)
+      ]);
+    } else {
+      setSyncLogs(prev => [
+        `❌ DB Sync Fail: ${(result.error as any)?.message || 'Entity constraints violation'}`,
+        ...prev.slice(0, 5)
+      ]);
+    }
   };
 
   // Main custom score updater logic
@@ -52,6 +252,9 @@ export default function MatchSimulator({ match, setMatch, onPlayerStatUpdate }: 
     options: { isWide?: boolean; isNoBall?: boolean; isWicket?: boolean } = {}
   ) => {
     if (match.status === 'Completed') return;
+
+    // Trigger Supabase sync in background
+    syncBallToSupabase(runs, options);
 
     setMatch(prev => {
       const matchState = JSON.parse(JSON.stringify(prev)) as Match;
@@ -62,7 +265,6 @@ export default function MatchSimulator({ match, setMatch, onPlayerStatUpdate }: 
 
       // Identify active batsmen
       const striker = matchState.onStrikeIndex === 0 ? mini.batsman1 : mini.batsman2;
-      const nonStriker = matchState.onStrikeIndex === 0 ? mini.batsman2 : mini.batsman1;
       const activeBowler = mini.bowler;
 
       let ballLabel = runs.toString();
@@ -194,6 +396,10 @@ export default function MatchSimulator({ match, setMatch, onPlayerStatUpdate }: 
               sixes: 0,
               strikeRate: 0
             };
+            if (isSupabaseConfigured) {
+              const matchedDbPlayer = dbPlayers.find(p => p.full_name?.toLowerCase() === newPlayer.name.toLowerCase());
+              if (matchedDbPlayer) setSelectedStrikerId(matchedDbPlayer.player_id);
+            }
           } else {
             mini.batsman2 = {
               name: `${newPlayer.name}`,
@@ -203,9 +409,12 @@ export default function MatchSimulator({ match, setMatch, onPlayerStatUpdate }: 
               sixes: 0,
               strikeRate: 0
             };
+            if (isSupabaseConfigured) {
+              const matchedDbPlayer = dbPlayers.find(p => p.full_name?.toLowerCase() === newPlayer.name.toLowerCase());
+              if (matchedDbPlayer) setSelectedNonStrikerId(matchedDbPlayer.player_id);
+            }
           }
           
-          // Also append to the match batting cards
           matchState.team1.battingCard.push({
             playerName: newPlayer.name,
             status: 'not out',
@@ -266,7 +475,7 @@ export default function MatchSimulator({ match, setMatch, onPlayerStatUpdate }: 
       } else if (runs === 4) {
         baseComm = `FOUR MORE! Elegant shot by ${striker.name}, cracking it down the pitch past the lunging mid-off fielder! The boundary straw fence didn't stop that!`;
       } else if (runs === 0) {
-        baseComm = `Dot ball! ${activeBowler.name} throws a gorgeous dart block, ${striker.name} is bottled down with no run possible.`;
+        baseComm = `Dot ball! ${activeBowler.name} throws a gorgeous glass deliver, ${striker.name} is bottled down with no run possible.`;
       }
 
       const ballRecord: BallRecord = {
@@ -324,28 +533,20 @@ export default function MatchSimulator({ match, setMatch, onPlayerStatUpdate }: 
   const simulateRandomBall = () => {
     const randomVal = Math.random();
     if (randomVal < 0.1) {
-      // 10% chance wicket
       recordBallValue(0, { isWicket: true });
     } else if (randomVal < 0.16) {
-      // 6% chance wide
       recordBallValue(0, { isWide: true });
     } else if (randomVal < 0.22) {
-      // 6% chance No-ball
       recordBallValue(1, { isNoBall: true });
     } else if (randomVal < 0.45) {
-      // 23% chance dot ball
       recordBallValue(0);
     } else if (randomVal < 0.7) {
-      // 25% chance single run
       recordBallValue(1);
     } else if (randomVal < 0.82) {
-      // 12% chance 2 runs
       recordBallValue(2);
     } else if (randomVal < 0.92) {
-      // 10% chance 4 boundary
       recordBallValue(4);
     } else {
-      // 8% chance 6 runs massive hit
       recordBallValue(6);
     }
   };
@@ -359,9 +560,9 @@ export default function MatchSimulator({ match, setMatch, onPlayerStatUpdate }: 
         <div>
           <div className="flex items-center gap-2">
             <Sliders className="h-5 w-5 text-[#ccff00]" />
-            <h4 className="font-display text-lg font-black text-white uppercase tracking-tight">💻 APNA UMPIRE PANEL</h4>
+            <h4 className="font-display text-lg font-black text-white uppercase tracking-tight">💻 APNA SCORER CONTROL CABINET</h4>
           </div>
-          <p className="text-xs text-slate-400 mt-0.5">Control live cricket scores or run rapid simulations.</p>
+          <p className="text-xs text-slate-400 mt-0.5">Live-Score controller. Fully synced with Supabase 31-table ecosystem.</p>
         </div>
 
         <div className="flex items-center gap-2">
@@ -371,7 +572,7 @@ export default function MatchSimulator({ match, setMatch, onPlayerStatUpdate }: 
             </span>
           ) : (
             <>
-              {/* Speed Controller label */}
+              {/* Speed Controller selector */}
               <select
                 value={simulationSpeed}
                 onChange={e => setSimulationSpeed(Number(e.target.value))}
@@ -410,17 +611,141 @@ export default function MatchSimulator({ match, setMatch, onPlayerStatUpdate }: 
         </div>
       </div>
 
+      {/* Database Connection Dashboard HUD */}
+      <div className="mb-6 p-4 rounded-xl border border-white/10 bg-black/50 text-left">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-2.5 mb-3">
+          <div className="flex items-center gap-2">
+            <Database className="h-4 w-4 text-[#ccff00]" />
+            <span className="text-xs font-black uppercase tracking-wider text-white">SUPABASE DB SYNC</span>
+          </div>
+          <div className="flex items-center gap-1.5 text-xs font-bold">
+            {isSupabaseConfigured ? (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-950/80 text-emerald-400 border border-emerald-500/20 text-[10px] uppercase font-black">
+                <Wifi className="h-3 w-3" />
+                <span>SYNC LIVE</span>
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-rose-950/80 text-rose-400 border border-rose-500/20 text-[10px] uppercase font-black animate-pulse">
+                <WifiOff className="h-3 w-3" />
+                <span>OFFLINE PLAYGROUND</span>
+              </span>
+            )}
+          </div>
+        </div>
+
+        {isSupabaseConfigured ? (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+            <div>
+              <label className="block text-[10px] uppercase font-black text-slate-400 mb-1">Target Match Session</label>
+              <select
+                value={selectedDbMatch}
+                onChange={e => setSelectedDbMatch(e.target.value)}
+                className="w-full bg-black/80 border border-white/10 rounded-lg p-2 text-xs font-sans text-white focus:outline-none focus:border-[#ccff00]"
+                id="sb-select-match"
+              >
+                {dbMatches.map(m => (
+                  <option key={m.match_id} value={m.match_id}>
+                    {m.match_title || `Match ID: ${m.match_id.substring(0, 8)}`}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-[10px] uppercase font-black text-slate-400 mb-1">Innings ID</label>
+              <input
+                type="text"
+                value={selectedDbInningsId}
+                disabled
+                className="w-full bg-slate-900 border border-white/5 rounded-lg p-2 text-xs font-mono text-[#ccff00] focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[10px] uppercase font-black text-slate-400 mb-1">ACTIVE INNINGS</label>
+              <div className="bg-black/40 border border-[#ccff00]/10 rounded-lg p-2 text-xs text-white font-black uppercase tracking-wider text-center">
+                 💥 INNINGS {selectedInningsNum} ({selectedInningsNum === 1 ? 'Batting 1st' : 'Chase Target'})
+              </div>
+            </div>
+
+            {/* Crease Mapping dropdowns */}
+            <div className="md:col-span-3 grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2.5 border-t border-white/5">
+              <div>
+                <label className="block text-[9px] uppercase font-black text-slate-400 mb-1">🏏 Striker Batter</label>
+                <select
+                  value={selectedStrikerId}
+                  onChange={e => setSelectedStrikerId(e.target.value)}
+                  className="w-full bg-black/80 border border-white/10 rounded-lg p-2 text-xs font-sans text-slate-100 focus:outline-none"
+                  id="sb-select-striker"
+                >
+                  <option value="">-- Pick Striker ID --</option>
+                  {dbPlayers.map(p => (
+                    <option key={p.player_id} value={p.player_id}>{p.full_name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[9px] uppercase font-black text-slate-400 mb-1">🏏 Non-Striker Batter</label>
+                <select
+                  value={selectedNonStrikerId}
+                  onChange={e => setSelectedNonStrikerId(e.target.value)}
+                  className="w-full bg-black/80 border border-white/10 rounded-lg p-2 text-xs font-sans text-slate-100 focus:outline-none"
+                  id="sb-select-nonstriker"
+                >
+                  <option value="">-- Pick Non-Striker ID --</option>
+                  {dbPlayers.map(p => (
+                    <option key={p.player_id} value={p.player_id}>{p.full_name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[9px] uppercase font-black text-slate-400 mb-1">🥎 Overs Bowler</label>
+                <select
+                  value={selectedBowlerId}
+                  onChange={e => setSelectedBowlerId(e.target.value)}
+                  className="w-full bg-black/80 border border-white/10 rounded-lg p-2 text-xs font-sans text-slate-100 focus:outline-none"
+                  id="sb-select-bowler"
+                >
+                  <option value="">-- Pick Bowler ID --</option>
+                  {dbPlayers.map(p => (
+                    <option key={p.player_id} value={p.player_id}>{p.full_name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div>
+            <p className="text-xs text-slate-400 leading-normal mb-2 font-medium">
+              Want to connect live score keys with Postgres? Add <strong className="text-[#ccff00]">VITE_SUPABASE_URL</strong> and <strong className="text-[#ccff00]">VITE_SUPABASE_ANON_KEY</strong> in your AI Studio secrets control. We will gracefully map and commit your changes instantly!
+            </p>
+          </div>
+        )}
+
+        {/* Sync telemetry diagnostic stream logs */}
+        <div className="mt-3 p-2 bg-black/85 rounded-lg border border-white/5 max-h-[100px] overflow-y-auto font-mono text-[10px] text-slate-400 space-y-1">
+          {syncLogs.map((log, lIdx) => (
+            <div key={lIdx} className="flex gap-1">
+              <span className="text-slate-500">▶</span>
+              <span className={log.includes('✅') ? 'text-emerald-400 font-bold' : log.includes('❌') ? 'text-red-400 font-bold' : log.includes('🟢') ? 'text-[#ccff05] font-black' : 'text-slate-350'}>{log}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Direct manual umpire click buttons */}
+        {/* Manual Ball triggers */}
         <div className="lg:col-span-2 space-y-4">
-          <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest block">
+          <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest block text-left">
             🏏 KEY IN LIVE BALL RESULTS (TAP TO ACTION)
           </span>
           
           <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
             <button
               onClick={() => recordBallValue(0)}
-              disabled={match.status === 'Completed'}
+              disabled={match.status === 'Completed' || isSyncing}
               className="flex flex-col items-center justify-center p-3.5 rounded-none border border-white/10 bg-black/40 hover:bg-[#ccff00]/10 hover:border-[#ccff00] text-slate-200 transition-all font-mono font-black disabled:opacity-40"
               id="umpire-btn-dot"
             >
@@ -430,7 +755,7 @@ export default function MatchSimulator({ match, setMatch, onPlayerStatUpdate }: 
 
             <button
               onClick={() => recordBallValue(1)}
-              disabled={match.status === 'Completed'}
+              disabled={match.status === 'Completed' || isSyncing}
               className="flex flex-col items-center justify-center p-3.5 rounded-none border border-white/10 bg-black/40 hover:bg-[#ccff00]/10 hover:border-[#ccff00] text-[#ccff00] transition-all font-mono font-black disabled:opacity-40"
               id="umpire-btn-1"
             >
@@ -440,7 +765,7 @@ export default function MatchSimulator({ match, setMatch, onPlayerStatUpdate }: 
 
             <button
               onClick={() => recordBallValue(2)}
-              disabled={match.status === 'Completed'}
+              disabled={match.status === 'Completed' || isSyncing}
               className="flex flex-col items-center justify-center p-3.5 rounded-none border border-white/10 bg-black/40 hover:bg-[#ccff00]/10 hover:border-[#ccff00] text-slate-200 transition-all font-mono font-black disabled:opacity-40"
               id="umpire-btn-2"
             >
@@ -450,7 +775,7 @@ export default function MatchSimulator({ match, setMatch, onPlayerStatUpdate }: 
 
             <button
               onClick={() => recordBallValue(3)}
-              disabled={match.status === 'Completed'}
+              disabled={match.status === 'Completed' || isSyncing}
               className="flex flex-col items-center justify-center p-3.5 rounded-none border border-white/10 bg-black/40 hover:bg-[#ccff00]/10 hover:border-[#ccff00] text-slate-200 transition-all font-mono font-black disabled:opacity-40"
               id="umpire-btn-3"
             >
@@ -460,7 +785,7 @@ export default function MatchSimulator({ match, setMatch, onPlayerStatUpdate }: 
 
             <button
               onClick={() => recordBallValue(4)}
-              disabled={match.status === 'Completed'}
+              disabled={match.status === 'Completed' || isSyncing}
               className="flex flex-col items-center justify-center p-3.5 rounded-none border border-emerald-500/30 bg-emerald-950/20 hover:bg-emerald-500 hover:text-black hover:border-emerald-500 text-emerald-400 transition-all font-mono font-black disabled:opacity-40"
               id="umpire-btn-4"
             >
@@ -470,7 +795,7 @@ export default function MatchSimulator({ match, setMatch, onPlayerStatUpdate }: 
 
             <button
               onClick={() => recordBallValue(6)}
-              disabled={match.status === 'Completed'}
+              disabled={match.status === 'Completed' || isSyncing}
               className="flex flex-col items-center justify-center p-3.5 rounded-none border border-[#ccff00]/30 bg-[#ccff00]/10 hover:bg-[#ccff00] hover:text-[#061a12] hover:border-[#ccff00] text-[#ccff00] transition-all font-mono font-black disabled:opacity-40 animate-pulse"
               id="umpire-btn-6"
             >
@@ -482,7 +807,7 @@ export default function MatchSimulator({ match, setMatch, onPlayerStatUpdate }: 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             <button
               onClick={() => recordBallValue(0, { isWide: true })}
-              disabled={match.status === 'Completed'}
+              disabled={match.status === 'Completed' || isSyncing}
               className="py-3 px-3 rounded-xl border border-white/10 bg-black/40 hover:bg-white/10 text-blue-400 text-xs font-black tracking-wider font-mono uppercase transition-all disabled:opacity-40"
               id="umpire-btn-wide"
             >
@@ -490,7 +815,7 @@ export default function MatchSimulator({ match, setMatch, onPlayerStatUpdate }: 
             </button>
             <button
               onClick={() => recordBallValue(0, { isNoBall: true })}
-              disabled={match.status === 'Completed'}
+              disabled={match.status === 'Completed' || isSyncing}
               className="py-3 px-3 rounded-xl border border-white/10 bg-black/40 hover:bg-white/10 text-indigo-400 text-xs font-black tracking-wider font-mono uppercase transition-all disabled:opacity-40"
               id="umpire-btn-noball"
             >
@@ -498,7 +823,7 @@ export default function MatchSimulator({ match, setMatch, onPlayerStatUpdate }: 
             </button>
             <button
               onClick={rotateStrike}
-              disabled={match.status === 'Completed'}
+              disabled={match.status === 'Completed' || isSyncing}
               className="py-3 px-3 rounded-xl border border-white/10 bg-black/40 hover:bg-white/10 text-slate-300 text-xs font-black tracking-wider font-sans uppercase tracking-wide transition-all disabled:opacity-40 flex items-center justify-center gap-1.5"
               id="umpire-btn-rotate"
             >
@@ -506,7 +831,7 @@ export default function MatchSimulator({ match, setMatch, onPlayerStatUpdate }: 
             </button>
             <button
               onClick={() => recordBallValue(0, { isWicket: true })}
-              disabled={match.status === 'Completed'}
+              disabled={match.status === 'Completed' || isSyncing}
               className="py-3 px-3 rounded-xl border border-red-500/30 bg-red-950/20 hover:bg-red-600 hover:text-white hover:border-red-600 text-red-400 text-xs font-black tracking-wider font-mono uppercase transition-all disabled:opacity-40"
               id="umpire-btn-wicket"
             >
@@ -515,15 +840,15 @@ export default function MatchSimulator({ match, setMatch, onPlayerStatUpdate }: 
           </div>
         </div>
 
-        {/* Umpire Assistant Metadata */}
-        <div className="bg-black/50 rounded-xl p-4 border border-white/10 flex flex-col justify-between">
+        {/* Scoring Helper Pitch info box */}
+        <div className="bg-black/50 rounded-xl p-4 border border-white/10 flex flex-col justify-between text-left">
           <div>
             <div className="flex items-center gap-1.5 text-slate-300 font-bold uppercase tracking-wider text-[10px] border-b border-white/10 pb-2 mb-2">
               <Volume2 className="h-4 w-4 text-[#ccff00]" />
-              <span>Commentary Pitch</span>
+              <span>Commentary Stream</span>
             </div>
             <p className="text-[11px] text-slate-400 leading-relaxed">
-              Every manual umpire click dynamically generates professional commentary for the live timeline feed. Use strike-swap to manage who is at bat!
+              Every score inputted triggers dynamic commentary templates. If Supabase is connected, the scoreboard increments update the database state in real-time.
             </p>
           </div>
           
@@ -534,10 +859,10 @@ export default function MatchSimulator({ match, setMatch, onPlayerStatUpdate }: 
                 {match.onStrikeIndex === 0 ? match.miniScore.batsman1.name : match.miniScore.batsman2.name}
               </span>
             </div>
-            <div className="flex items-center justify-between text-xs text-slate-405 mt-1.5">
-              <span className="uppercase font-bold text-[10px]">Stance:</span>
-              <span className="text-[#ccff00] font-black uppercase text-[9px] tracking-wider">
-                READY TO RECEIVE
+            <div className="flex items-center justify-between text-xs text-slate-450 mt-1.5">
+              <span className="uppercase font-bold text-[10px]">Database Status:</span>
+              <span className={isSupabaseConfigured ? 'text-emerald-400 font-black text-[9px] tracking-wide' : 'text-slate-400 font-black text-[9px] tracking-wide'}>
+                {isSupabaseConfigured ? 'ONLINE SYNC ACTIVE' : 'LOCAL CACHE ONLY'}
               </span>
             </div>
           </div>

@@ -5,42 +5,87 @@ import { Fixture } from '../types';
 interface TournamentsViewProps {
   fixtures: Fixture[];
   onAddFixture: (fixture: Fixture) => void;
+  tournaments: any[];
+  setTournaments: React.Dispatch<React.SetStateAction<any[]>>;
+  teams: any[];
 }
 
-const TOURNAMENTS = [
-  { id: 'KHALSA', name: 'Apna Village Khalsa Cup', organizer: 'Panchayat Council', balls: 'Heavy Tape Ball', duration: '12 Overs', count: 4 },
-  { id: 'VPL', name: 'Village Premier League (VPL)', organizer: 'Malgudi Meadows Committee', balls: 'Leather Ball', duration: '12 Overs', count: 4 }
-];
+export default function TournamentsView({ fixtures, onAddFixture, tournaments, setTournaments, teams }: TournamentsViewProps) {
+  const [selectedCup, setSelectedCup] = useState<string>(tournaments[0]?.id || 'KHALSA');
+  
+  // High-fidelity independent points tables database per tournament
+  const [pointsByTournament, setPointsByTournament] = useState<Record<string, any[]>>(() => {
+    try {
+      const saved = localStorage.getItem('apna_cricket_points_by_tourney');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return {
+      'KHALSA': [
+        { team: 'Rampur Warriors', played: 3, won: 2, lost: 1, pts: 4, nrr: '+1.450' },
+        { team: 'Malgudi Stars', played: 3, won: 2, lost: 1, pts: 4, nrr: '+0.880' },
+        { team: 'Gully Raiders', played: 3, won: 1, lost: 2, pts: 2, nrr: '-0.320' },
+        { team: 'Dangal Kings', played: 3, won: 1, lost: 2, pts: 2, nrr: '-1.890' }
+      ],
+      'VPL': [
+        { team: 'Rampur Warriors', played: 4, won: 3, lost: 1, pts: 6, nrr: '+1.120' },
+        { team: 'Malgudi Stars', played: 4, won: 2, lost: 2, pts: 4, nrr: '+0.450' },
+        { team: 'Gully Raiders', played: 4, won: 2, lost: 2, pts: 4, nrr: '-0.150' },
+        { team: 'Dangal Kings', played: 4, won: 1, lost: 3, pts: 2, nrr: '-1.420' }
+      ]
+    };
+  });
 
-// Initial simulated points table rows
-const INITIAL_POINTS = [
-  { team: 'Rampur Warriors', played: 3, won: 2, lost: 1, pts: 4, nrr: '+1.450' },
-  { team: 'Malgudi Stars', played: 3, won: 2, lost: 1, pts: 4, nrr: '+0.880' },
-  { team: 'Gully Raiders', played: 3, won: 1, lost: 2, pts: 2, nrr: '-0.320' },
-  { team: 'Dangal Kings', played: 3, won: 1, lost: 2, pts: 2, nrr: '-1.890' }
-];
+  // Sync back to local storage whenever points table modifications happen
+  React.useEffect(() => {
+    localStorage.setItem('apna_cricket_points_by_tourney', JSON.stringify(pointsByTournament));
+  }, [pointsByTournament]);
 
-export default function TournamentsView({ fixtures, onAddFixture }: TournamentsViewProps) {
-  const [selectedCup, setSelectedCup] = useState<'KHALSA' | 'VPL'>('KHALSA');
-  const [pointsTable, setPointsTable] = useState(INITIAL_POINTS);
+  // If selectedCup points table is not initialized yet (e.g. for dynamic tournament), initialize it with currently active teams
+  const activePointsTable = pointsByTournament[selectedCup] || React.useMemo(() => {
+    const list = teams.map(t => ({
+      team: t.name,
+      played: 0,
+      won: 0,
+      lost: 0,
+      pts: 0,
+      nrr: '0.000'
+    }));
+    return list;
+  }, [teams, selectedCup]);
   
   // Custom tournament scheduler admin state
   const [showScheduler, setShowScheduler] = useState(false);
-  const [team1, setTeam1] = useState('Rampur Warriors');
-  const [team2, setTeam2] = useState('Gully Raiders');
+  const [team1, setTeam1] = useState(teams[0]?.name || 'Rampur Warriors');
+  const [team2, setTeam2] = useState(teams[1]?.name || 'Gully Raiders');
   const [date, setDate] = useState('Jun 29, 2026');
   const [time, setTime] = useState('4:30 PM IST');
   const [venue, setVenue] = useState('Rampur Panchayat Meadow Arena');
   const [successMsg, setSuccessMsg] = useState('');
 
+  // Dynamic tournament registration states
+  const [showTourneyBuilder, setShowTourneyBuilder] = useState(false);
+  const [newTourneyName, setNewTourneyName] = useState('');
+  const [newTourneyOrg, setNewTourneyOrg] = useState('');
+  const [newTourneyBall, setNewTourneyBall] = useState('Heavy Tape Ball');
+  const [newTourneyOvers, setNewTourneyOvers] = useState('12 Overs');
+  const [newTourneyPrize, setNewTourneyPrize] = useState('');
+
   // Interactive points adjustment to satisfy live points table modification goals
   const recordSimulatedWin = (teamIndex: number) => {
-    const updated = [...pointsTable];
-    updated[teamIndex].played += 1;
-    updated[teamIndex].won += 1;
-    updated[teamIndex].pts += 2;
+    const activeTableCopy = [...activePointsTable];
+    activeTableCopy[teamIndex] = {
+      ...activeTableCopy[teamIndex],
+      played: activeTableCopy[teamIndex].played + 1,
+      won: activeTableCopy[teamIndex].won + 1,
+      pts: activeTableCopy[teamIndex].pts + 2
+    };
+    
     // Sort table by descending points
-    setPointsTable(updated.sort((a,b) => b.pts - a.pts));
+    const sorted = [...activeTableCopy].sort((a, b) => b.pts - a.pts);
+    setPointsByTournament(prev => ({
+      ...prev,
+      [selectedCup]: sorted
+    }));
   };
 
   const handleAddFixtureSubmit = (e: React.FormEvent) => {
@@ -50,19 +95,15 @@ export default function TournamentsView({ fixtures, onAddFixture }: TournamentsV
       return;
     }
 
-    const shortNames: { [key: string]: string } = {
-      'Rampur Warriors': 'RMP',
-      'Malgudi Stars': 'MGD',
-      'Dangal Kings': 'DGL',
-      'Gully Raiders': 'GLY'
-    };
+    const shortNames: { [key: string]: string } = {};
+    const gradientColors: { [key: string]: string } = {};
+    
+    teams.forEach(t => {
+      shortNames[t.name] = t.short || t.shortName || 'T';
+      gradientColors[t.name] = t.color || t.logoColor || 'from-indigo-500 to-blue-500';
+    });
 
-    const gradientColors: { [key: string]: string } = {
-      'Rampur Warriors': 'from-orange-500 to-amber-600',
-      'Malgudi Stars': 'from-blue-500 to-indigo-600',
-      'Dangal Kings': 'from-red-500 to-rose-600',
-      'Gully Raiders': 'from-emerald-500 to-teal-600'
-    };
+    const activeCupObj = tournaments.find(c => c.id === selectedCup);
 
     const newFix: Fixture = {
       id: `f-scheduled-${Date.now()}`,
@@ -75,7 +116,7 @@ export default function TournamentsView({ fixtures, onAddFixture }: TournamentsV
       date,
       time,
       venue,
-      tournamentName: selectedCup === 'KHALSA' ? 'Apna Village Khalsa Cup' : 'Village Premier League (VPL)'
+      tournamentName: activeCupObj ? activeCupObj.name : 'Apna Village Khalsa Cup'
     };
 
     onAddFixture(newFix);
@@ -84,6 +125,52 @@ export default function TournamentsView({ fixtures, onAddFixture }: TournamentsV
     setTimeout(() => {
       setSuccessMsg('');
       setShowScheduler(false);
+    }, 1500);
+  };
+
+  const handleAddTourneySubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTourneyName || !newTourneyOrg) return;
+
+    const newID = `tourney-${Date.now()}`;
+    const newTourney = {
+      id: newID,
+      name: newTourneyName,
+      organizer: newTourneyOrg,
+      balls: newTourneyBall,
+      duration: newTourneyOvers,
+      count: teams.length,
+      prize: newTourneyPrize || 'Trophy & Sweet treats',
+      isCustom: true
+    };
+
+    setTournaments(prev => [...prev, newTourney]);
+
+    // Initialize points standing for this dynamic tournament
+    const initialSeats = teams.map(t => ({
+      team: t.name,
+      played: 0,
+      won: 0,
+      lost: 0,
+      pts: 0,
+      nrr: '0.000'
+    }));
+
+    setPointsByTournament(prev => ({
+      ...prev,
+      [newID]: initialSeats
+    }));
+
+    setSuccessMsg(`Tournament "${newTourneyName}" launched successfully! 🏆`);
+    setSelectedCup(newID);
+
+    setNewTourneyName('');
+    setNewTourneyOrg('');
+    setNewTourneyPrize('');
+
+    setTimeout(() => {
+      setSuccessMsg('');
+      setShowTourneyBuilder(false);
     }, 1500);
   };
 
@@ -101,13 +188,29 @@ export default function TournamentsView({ fixtures, onAddFixture }: TournamentsV
           </p>
         </div>
 
-        <button
-          onClick={() => setShowScheduler(!showScheduler)}
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-black uppercase tracking-wider text-xs px-5 py-3 rounded-xl transition-all shadow-md shrink-0 cursor-pointer"
-        >
-          <Plus className="h-4 w-4" />
-          <span>Schedule New Match</span>
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => {
+              setShowScheduler(!showScheduler);
+              setShowTourneyBuilder(false);
+            }}
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-black uppercase tracking-wider text-xs px-5 py-3 rounded-xl transition-all shadow-md shrink-0 cursor-pointer text-center"
+          >
+            <Plus className="h-4 w-4" />
+            <span>Schedule New Match</span>
+          </button>
+
+          <button
+            onClick={() => {
+              setShowTourneyBuilder(!showTourneyBuilder);
+              setShowScheduler(false);
+            }}
+            className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase tracking-wider text-xs px-5 py-3 rounded-xl transition-all shadow-md shrink-0 cursor-pointer text-center"
+          >
+            <Trophy className="h-4 w-4" />
+            <span>Launch Tournament</span>
+          </button>
+        </div>
       </div>
 
       {/* AD-HOC FIXTURE SCHEDULER DRAWER */}
@@ -145,10 +248,9 @@ export default function TournamentsView({ fixtures, onAddFixture }: TournamentsV
                 onChange={e => setTeam1(e.target.value)}
                 className="w-full bg-slate-50 border border-slate-250 rounded-xl px-3 py-2.5 text-xs text-slate-800 font-bold focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 cursor-pointer"
               >
-                <option value="Rampur Warriors">Rampur Warriors</option>
-                <option value="Malgudi Stars">Malgudi Stars</option>
-                <option value="Dangal Kings">Dangal Kings</option>
-                <option value="Gully Raiders">Gully Raiders</option>
+                {teams.map(t => (
+                  <option key={t.id} value={t.name}>{t.name} ({t.short})</option>
+                ))}
               </select>
             </div>
 
@@ -159,10 +261,9 @@ export default function TournamentsView({ fixtures, onAddFixture }: TournamentsV
                 onChange={e => setTeam2(e.target.value)}
                 className="w-full bg-slate-50 border border-slate-250 rounded-xl px-3 py-2.5 text-xs text-slate-800 font-bold focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 cursor-pointer"
               >
-                <option value="Rampur Warriors">Rampur Warriors</option>
-                <option value="Malgudi Stars">Malgudi Stars</option>
-                <option value="Dangal Kings">Dangal Kings</option>
-                <option value="Gully Raiders">Gully Raiders</option>
+                {teams.map(t => (
+                  <option key={t.id} value={t.name}>{t.name} ({t.short})</option>
+                ))}
               </select>
             </div>
 
@@ -211,21 +312,115 @@ export default function TournamentsView({ fixtures, onAddFixture }: TournamentsV
         </form>
       )}
 
+      {/* DYNAMIC TOURNAMENT CREATOR FORM */}
+      {showTourneyBuilder && (
+        <form 
+          onSubmit={handleAddTourneySubmit} 
+          className="p-6 border border-slate-200 bg-white rounded-3xl space-y-5 shadow-lg text-left transition-all max-w-4xl mx-auto" 
+          id="tourney-builder-form"
+        >
+          <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+            <h4 className="font-display font-black text-slate-800 uppercase tracking-wider text-xs flex items-center gap-2">
+              <Trophy className="h-4 w-4 text-emerald-600" />
+              LAUNCH NEW VILLAGE CRICKET TOURNAMENT (DYNAMIC INSERTION)
+            </h4>
+            <button
+              type="button"
+              onClick={() => setShowTourneyBuilder(false)}
+              className="text-slate-400 hover:text-slate-700 text-xs font-black uppercase tracking-wider cursor-pointer"
+            >
+              Cancel
+            </button>
+          </div>
+
+          {successMsg && (
+            <div className="bg-emerald-50 text-emerald-800 border border-emerald-200 p-3.5 rounded-xl text-xs font-mono font-bold">
+              {successMsg}
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black uppercase text-slate-500 tracking-wider">Tournament Name</label>
+              <input
+                type="text"
+                required
+                value={newTourneyName}
+                onChange={e => setNewTourneyName(e.target.value)}
+                placeholder="e.g. Rampur Winter Derby"
+                className="w-full bg-slate-50 border border-slate-250 rounded-xl px-3 py-2.5 text-xs text-slate-800 font-bold focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black uppercase text-slate-500 tracking-wider">Host/Organizer</label>
+              <input
+                type="text"
+                required
+                value={newTourneyOrg}
+                onChange={e => setNewTourneyOrg(e.target.value)}
+                placeholder="e.g. Rampur Council Committee"
+                className="w-full bg-slate-50 border border-slate-250 rounded-xl px-3 py-2.5 text-xs text-slate-800 font-bold focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black uppercase text-slate-500 tracking-wider">Tournament Ball Type</label>
+              <select
+                value={newTourneyBall}
+                onChange={e => setNewTourneyBall(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-250 rounded-xl px-3 py-2.5 text-xs text-slate-800 font-bold focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 cursor-pointer"
+              >
+                <option value="Heavy Tape Ball">Heavy Tape Ball</option>
+                <option value="Leather Ball">Leather Ball</option>
+                <option value="Tennis Ball">Tennis Ball</option>
+                <option value="Standard Rubber">Standard Rubber</option>
+              </select>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black uppercase text-slate-500 tracking-wider">Tournament Prize / Bounty</label>
+              <input
+                type="text"
+                value={newTourneyPrize}
+                onChange={e => setNewTourneyPrize(e.target.value)}
+                placeholder="e.g. 5000 INR + Sweets"
+                className="w-full bg-slate-50 border border-slate-250 rounded-xl px-3 py-2.5 text-xs text-slate-800 font-bold focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500"
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end pt-2">
+            <button
+              type="submit"
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase tracking-widest text-xs px-6 py-3.5 rounded-xl shadow-lg transition-all cursor-pointer"
+            >
+              Start Tournament
+            </button>
+          </div>
+        </form>
+      )}
+
       {/* TOURNAMENTS CHANGER TABS */}
-      <div className="flex flex-wrap gap-2.5 border-b border-slate-200 pb-4">
-        {TOURNAMENTS.map(cup => (
-          <button
-            key={cup.id}
-            onClick={() => setSelectedCup(cup.id as any)}
-            className={`px-5 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all border cursor-pointer ${
-              selectedCup === cup.id
-                ? 'bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-500/10'
-                : 'bg-white border-slate-200 text-slate-650 hover:bg-slate-50 hover:text-slate-900'
-            }`}
-          >
-            {cup.name}
-          </button>
-        ))}
+      <div className="space-y-2 text-left">
+        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block font-sans">
+          Select Active Tournament League
+        </span>
+        <div className="flex flex-wrap gap-2 border-b border-slate-205 pb-4">
+          {tournaments.map(cup => (
+            <button
+              key={cup.id}
+              onClick={() => setSelectedCup(cup.id)}
+              className={`px-5 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all border cursor-pointer ${
+                selectedCup === cup.id
+                  ? 'bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-500/10 animate-[pulse_3s_infinite]'
+                  : 'bg-white border-slate-200 text-slate-650 hover:bg-slate-50 hover:text-slate-900'
+              }`}
+            >
+              {cup.name} {cup.isCustom && '🌟'}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
@@ -238,7 +433,11 @@ export default function TournamentsView({ fixtures, onAddFixture }: TournamentsV
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-slate-100 pb-3.5 gap-2">
               <div>
                 <h3 className="font-display text-sm font-black text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
-                  <span className="text-blue-600">🏆</span> {selectedCup === 'KHALSA' ? 'PANCHAYAT CO-HEIR STANDINGS' : 'VPL OFFICIAL POINTS RATING'}
+                  <span className="text-blue-600">🏆</span> 
+                  {(() => {
+                    const found = tournaments.find(t => t.id === selectedCup);
+                    return found ? found.name.toUpperCase() + ' OFFICIAL STANDINGS' : 'PANCHAYAT STANDINGS';
+                  })()}
                 </h3>
                 <p className="text-[10px] text-slate-400 mt-0.5 uppercase font-bold tracking-wider">
                   Official ranking of teams for the current tournament stages
@@ -263,7 +462,7 @@ export default function TournamentsView({ fixtures, onAddFixture }: TournamentsV
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-slate-750">
-                  {pointsTable.map((row, index) => (
+                  {activePointsTable.map((row, index) => (
                     <tr key={index} className="hover:bg-slate-50/60 transition-colors">
                       <td className="px-4 py-3.5 font-sans font-extrabold text-slate-900 uppercase text-xs tracking-wide">
                         <span className="inline-block text-slate-400 mr-2 font-mono text-[11px]">{index + 1}.</span>
@@ -325,7 +524,7 @@ export default function TournamentsView({ fixtures, onAddFixture }: TournamentsV
             </h3>
 
             <div className="space-y-2.5 text-xs">
-              {INITIAL_POINTS.map((row, idx) => {
+              {activePointsTable.map((row, idx) => {
                 const colors = idx === 0 ? 'from-orange-500 to-amber-500' : idx === 1 ? 'from-blue-500 to-indigo-600' : idx === 2 ? 'from-emerald-500 to-teal-600' : 'from-red-500 to-rose-600';
                 return (
                   <div key={idx} className="flex items-center justify-between p-3 bg-slate-50 border border-slate-150 rounded-xl">
@@ -334,7 +533,7 @@ export default function TournamentsView({ fixtures, onAddFixture }: TournamentsV
                       <span className="font-extrabold text-slate-800 uppercase tracking-wide">{row.team}</span>
                     </div>
                     <span className="text-[9px] bg-blue-50 text-blue-700 border border-blue-100 font-mono font-black uppercase px-2 py-0.5 rounded">
-                      SEEDED
+                      ACTIVE
                     </span>
                   </div>
                 );

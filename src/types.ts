@@ -15,6 +15,7 @@ export interface Player {
   id: string;
   name: string;
   teamId: string;
+  team?: string;
   role: 'Batsman' | 'Bowler' | 'All-Rounder' | 'Wicket-Keeper';
   battingStyle: 'Right-hand bat' | 'Left-hand bat';
   bowlingStyle?: 'Right-arm fast' | 'Right-arm spin' | 'Left-arm fast' | 'Left-arm spin';

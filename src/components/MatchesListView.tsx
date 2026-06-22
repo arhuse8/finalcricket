@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Search, ChevronDown, ChevronRight, Sliders, Play, Award, Trophy, Users, Shield, Bell, MapPin, ArrowLeft, RefreshCw, Calendar, Eye, Activity, Star, User, Settings, Tv, Lock, Unlock } from 'lucide-react';
+import { Search, ChevronDown, ChevronRight, Sliders, Play, Award, Trophy, Users, Shield, Bell, MapPin, ArrowLeft, RefreshCw, Calendar, Eye, Activity, Star, User, Settings, Tv, Lock, Unlock, Trash2 } from 'lucide-react';
 import { Match } from '../types';
 import SpectatorDashboard from './SpectatorDashboard';
 import AdminSandbox from './AdminSandbox';
+import { isSupabaseConfigured } from '../lib/supabase';
+import { supabaseService } from '../lib/supabaseService';
 
 interface MatchesListViewProps {
   liveMatch: Match;
@@ -71,121 +73,113 @@ export default function MatchesListView({
   // Interactive match selected for detail view (could be liveMatch or a mockup)
   const [selectedMatchId, setSelectedMatchId] = useState<string | null>(null);
 
-  // Match list mock database mimicking the user's uploaded screenshot perfectly
-  const allMatchesData = [
-    {
-      id: 'm-csk-mi',
-      league: 'SPL 2024 - Match 23',
-      status: 'Live',
-      team1: { name: 'CSK', runs: 154, wickets: 5, overs: 18.3, logoColor: 'from-yellow-400 to-amber-500', logo: '🦁' },
-      team2: { name: 'MI', runs: 145, wickets: 8, overs: 20.0, logoColor: 'from-blue-500 to-indigo-600', logo: '🌀' },
-      statusMessage: 'CSK need 9 runs in 9 balls',
-      runRateInfo: 'Required RR: 6.00 | CRR: 8.32',
-      recentBalls: ['1', '4', '0', 'W', '2', '6'],
-      venue: 'Wankhede Stadium, Mumbai',
-      format: 'T20',
-      tournament: 'Shivaji Premier League 2024',
-      watchLive: true
-    },
-    {
-      id: 'm-gt-pbks',
-      league: 'GPL 2024 - Match 12',
-      status: 'Live',
-      team1: { name: 'GT', runs: 98, wickets: 3, overs: 12.0, logoColor: 'from-slate-600 to-slate-800', logo: '⚡' },
-      team2: { name: 'PBKS', runs: 0, wickets: 0, overs: 0.0, logoColor: 'from-red-500 to-rose-600', logo: '🦁' },
-      statusMessage: 'Gujarat Titans won the toss, opted to bat first',
-      runRateInfo: 'Projected score: 163 runs',
-      recentBalls: ['0', '1', '4', '1', '0', '2'],
-      venue: 'Narendra Modi Stadium, Ahmedabad',
-      format: 'T20',
-      tournament: 'Gujarat Premier League 2024',
-      watchLive: false
-    },
-    {
-      id: 'm-rr-srh',
-      league: 'RPL 2024 - Match 8',
-      status: 'Live',
-      team1: { name: 'RR', runs: 67, wickets: 2, overs: 8.1, logoColor: 'from-pink-500 to-rose-600', logo: '👑' },
-      team2: { name: 'SRH', runs: 0, wickets: 0, overs: 0.0, logoColor: 'from-orange-500 to-red-650', logo: '🦅' },
-      statusMessage: 'Rajasthan Royals need 112 runs',
-      runRateInfo: 'Required RR: 13.71 | CRR: 8.20',
-      recentBalls: ['4', '0', '1', '4', '0', 'W'],
-      venue: 'Sawai Mansingh Stadium, Jaipur',
-      format: '12 Overs',
-      tournament: 'Rajasthan Premier League 2024',
-      watchLive: true
-    },
-    {
-      id: 'm-dc-lsg',
-      league: 'DPL 2024 - Match 15',
-      status: 'Live',
-      team1: { name: 'DC', runs: 120, wickets: 6, overs: 16.0, logoColor: 'from-blue-600 to-sky-500', logo: '🐅' },
-      team2: { name: 'LSG', runs: 0, wickets: 0, overs: 0.0, logoColor: 'from-cyan-600 to-teal-500', logo: '🦅' },
-      statusMessage: 'Delhi Capitals won the toss, opted to bat',
-      runRateInfo: 'Projected score: 150 runs',
-      recentBalls: ['1', '1', '4', '6', '0', 'W'],
-      venue: 'Arun Jaitley Stadium, Delhi',
-      format: 'T20',
-      tournament: 'Delhi Premier League 2024',
-      watchLive: false
-    },
-    {
-      id: 'm-local-sim',
-      league: 'Village Derby - Live Simulator',
-      status: 'Live',
-      team1: { name: liveMatch.team1.shortName, runs: liveMatch.team1.score.runs, wickets: liveMatch.team1.score.wickets, overs: parseFloat(`${liveMatch.team1.score.overs}.${liveMatch.team1.score.balls}`), logoColor: liveMatch.team1.logoColor, logo: '🏏' },
-      team2: { name: liveMatch.team2.shortName, runs: liveMatch.team2.score.runs, wickets: liveMatch.team2.score.wickets, overs: parseFloat(`${liveMatch.team2.score.overs}.${liveMatch.team2.score.balls}`), logoColor: liveMatch.team2.logoColor, logo: '🌀' },
-      statusMessage: liveMatch.isFirstInningsComplete ? `${liveMatch.team2.shortName} needs ${liveMatch.targetRuns} runs to win!` : liveMatch.tossResult,
-      runRateInfo: liveMatch.isFirstInningsComplete ? `Target: ${liveMatch.targetRuns}` : 'Direct active simulation playground',
-      recentBalls: liveMatch.recentBalls.length > 0 ? liveMatch.recentBalls.slice(0, 6) : ['0', '1', '4', '6', '0', 'W'],
-      venue: liveMatch.venue,
-      format: '12 Overs',
-      tournament: 'Panchayat Village Cup',
-      watchLive: true,
-      isActiveSimulation: true
-    },
-    // Upcoming matches
-    {
-      id: 'm-up-01',
-      league: 'SPL 2024 - Match 24',
-      status: 'Upcoming',
-      team1: { name: 'RCB', runs: 0, wickets: 0, overs: 0, logoColor: 'from-red-600 to-yellow-500', logo: '🦁' },
-      team2: { name: 'KKR', runs: 0, wickets: 0, overs: 0, logoColor: 'from-purple-600 to-indigo-700', logo: '👑' },
-      statusMessage: 'Match starts at 7:30 PM IST',
-      runRateInfo: 'Jun 19, 2026',
-      recentBalls: [],
-      venue: 'M. Chinnaswamy Stadium, Bengaluru',
-      format: 'T20',
-      tournament: 'Shivaji Premier League 2024'
-    },
-    {
-      id: 'm-up-02',
-      league: 'VPL 2024 - Match 5',
-      status: 'Upcoming',
-      team1: { name: 'RMP', runs: 0, wickets: 0, overs: 0, logoColor: 'from-orange-500 to-amber-600', logo: '🏹' },
-      team2: { name: 'DGL', runs: 0, wickets: 0, overs: 0, logoColor: 'from-red-500 to-rose-600', logo: '⚔️' },
-      statusMessage: 'Local village rivalry match starts tomorrow',
-      runRateInfo: 'Jun 20, 2026 • 2:00 PM',
-      recentBalls: [],
-      venue: 'Panchayat Meadow Ground',
-      format: '12 Overs',
-      tournament: 'Village Premier League (VPL)'
-    },
-    // Finished matches
-    {
-      id: 'm-comp-01',
-      league: 'BCL 2024 - Match 7',
-      status: 'Completed',
-      team1: { name: 'BIL', runs: 210, wickets: 4, overs: 20.0, logoColor: 'from-green-600 to-emerald-500', logo: '🦁' },
-      team2: { name: 'HYD', runs: 198, wickets: 7, overs: 20.0, logoColor: 'from-amber-500 to-yellow-600', logo: '👑' },
-      statusMessage: 'Bengaluru won by 12 runs',
-      runRateInfo: 'Match Completed',
-      recentBalls: ['1', '4', '2', '1', 'W', '0'],
-      venue: 'M. Chinnaswamy Stadium, Bengaluru',
-      format: 'T20',
-      tournament: 'Bangalore Champions League'
+  // Dynamic Matches List that loads custom Supabase records or local sandbox
+  const [allMatchesData, setAllMatchesData] = useState<any[]>([]);
+  const [dbLoading, setDbLoading] = useState(false);
+  const [refresher, setRefresher] = useState(0);
+
+  const handleDeleteMatchClick = async (matchId: string, title: string) => {
+    if (!window.confirm(`Are you sure you want to delete "${title}" and all of its associated innings, ball-by-ball events, and performance stats permanently?`)) {
+      return;
     }
-  ];
+    try {
+      if (isSupabaseConfigured) {
+        const success = await supabaseService.deleteMatch(matchId);
+        if (success) {
+          triggerToast(`🗑️ Match "${title}" successfully deleted!`);
+          setRefresher(prev => prev + 1);
+        } else {
+          triggerToast("❌ Failed to delete match.");
+        }
+      }
+    } catch (e: any) {
+      console.error(e);
+      triggerToast(`⚠️ Error deleting match: ${e.message || e}`);
+    }
+  };
+
+  useEffect(() => {
+    async function loadDynamicFixtures() {
+      const localSim = {
+        id: 'm-local-sim',
+        league: 'Village Derby - Live Simulator',
+        status: 'Live',
+        team1: { name: liveMatch.team1.shortName, runs: liveMatch.team1.score.runs, wickets: liveMatch.team1.score.wickets, overs: parseFloat(`${liveMatch.team1.score.overs}.${liveMatch.team1.score.balls}`), logoColor: liveMatch.team1.logoColor, logo: '🏏' },
+        team2: { name: liveMatch.team2.shortName, runs: liveMatch.team2.score.runs, wickets: liveMatch.team2.score.wickets, overs: parseFloat(`${liveMatch.team2.score.overs}.${liveMatch.team2.score.balls}`), logoColor: liveMatch.team2.logoColor, logo: '🌀' },
+        statusMessage: liveMatch.isFirstInningsComplete ? `${liveMatch.team2.shortName} needs ${liveMatch.targetRuns} runs to win!` : liveMatch.tossResult || 'Local match simulation playground',
+        runRateInfo: liveMatch.isFirstInningsComplete ? `Target: ${liveMatch.targetRuns}` : 'Direct active simulation playground',
+        recentBalls: liveMatch.recentBalls.length > 0 ? liveMatch.recentBalls.slice(0, 6) : ['0', '1', '4', '6', '0', 'W'],
+        venue: liveMatch.venue,
+        format: liveMatch.oversLimit === 12 ? '12 Overs' : 'T20',
+        tournament: liveMatch.title || 'Panchayat Village Cup',
+        watchLive: true,
+        isActiveSimulation: true
+      };
+
+      if (!isSupabaseConfigured) {
+        setAllMatchesData([localSim]);
+        return;
+      }
+
+      setDbLoading(true);
+      try {
+        const matches = await supabaseService.getMatches();
+        const teams = await supabaseService.getTeams();
+        const mappedList: any[] = [];
+
+        for (const m of matches) {
+          const innings = await supabaseService.getMatchInnings(m.match_id);
+          
+          const t1 = teams.find((t: any) => t.team_id === m.team_a_id) || teams.find((t: any) => t.team_id === m.team_1_id);
+          const t2 = teams.find((t: any) => t.team_id === m.team_b_id) || teams.find((t: any) => t.team_id === m.team_2_id);
+
+          const team1Name = t1?.team_name || m.team_a_name || 'Team A';
+          const team2Name = t2?.team_name || m.team_b_name || 'Team B';
+          const team1Short = t1?.short_name || team1Name.substring(0, 3).toUpperCase();
+          const team2Short = t2?.short_name || team2Name.substring(0, 3).toUpperCase();
+          const team1Color = t1?.logo_color || 'from-orange-500 to-amber-600';
+          const team2Color = t2?.logo_color || 'from-blue-500 to-indigo-600';
+
+          const innings1 = innings.find((inn: any) => inn.innings_number === 1);
+          const innings2 = innings.find((inn: any) => inn.innings_number === 2);
+
+          const r1 = innings1?.total_runs || 0;
+          const w1 = innings1?.total_wickets || 0;
+          const o1 = innings1?.total_overs || 0;
+
+          const r2 = innings2?.total_runs || 0;
+          const w2 = innings2?.total_wickets || 0;
+          const o2 = innings2?.total_overs || 0;
+
+          const status = m.match_status === 'completed' ? 'Completed' : m.match_status === 'upcoming' ? 'Upcoming' : 'Live';
+
+          mappedList.push({
+            id: m.match_id,
+            league: m.match_title || 'Local Tourney',
+            status,
+            team1: { name: team1Short, nameByDb: team1Name, runs: r1, wickets: w1, overs: o1, logoColor: team1Color, logo: '🦁' },
+            team2: { name: team2Short, nameByDb: team2Name, runs: r2, wickets: w2, overs: o2, logoColor: team2Color, logo: '👑' },
+            statusMessage: m.notes || (status === 'Completed' ? 'Match Finished' : m.elected_to ? `${team1Short} elected to ${m.elected_to}` : 'Live score tracking ready'),
+            runRateInfo: status === 'Live' ? `Overs Limit: ${m.overs_limit || 12}` : status === 'Upcoming' ? m.match_date || 'Future' : 'Match Completed',
+            recentBalls: [],
+            venue: m.venue || m.ground_name || 'Local Arena',
+            format: m.overs_limit === 12 ? '12 Overs' : 'T20',
+            tournament: m.match_title || 'Tournament',
+            watchLive: true,
+            isDbMatch: true,
+            dbMatchRaw: m
+          });
+        }
+        setAllMatchesData(mappedList);
+      } catch (e) {
+        console.error('Error fetching Supabase matches list', e);
+        setAllMatchesData([]);
+      } finally {
+        setDbLoading(false);
+      }
+    }
+    loadDynamicFixtures();
+  }, [liveMatch, refresher]);
 
   // Filtering logic
   const filteredMatches = allMatchesData.filter(m => {
@@ -203,9 +197,88 @@ export default function MatchesListView({
 
   const liveMatchesCount = allMatchesData.filter(m => m.status === 'Live').length;
 
-  const handleOpenMatch = (match: any) => {
+  const handleOpenMatch = async (match: any) => {
     if (match.isActiveSimulation) {
       setCurrentSimulatedView('detail');
+    } else if (match.isDbMatch) {
+      try {
+        const fullScorecard = await supabaseService.getFullScorecard(match.id);
+        const matchRaw = match.dbMatchRaw;
+        
+        const selectedAsMatch: Match = {
+          id: matchRaw.match_id,
+          title: matchRaw.match_title || 'Supabase Match',
+          venue: matchRaw.venue || matchRaw.ground_name || 'Local Arena',
+          date: matchRaw.match_date || 'Live Tracker Mode',
+          status: matchRaw.match_status === 'completed' ? 'Completed' : matchRaw.match_status === 'upcoming' ? 'Upcoming' : 'Live',
+          oversLimit: matchRaw.overs_limit || 12,
+          battingTeamId: matchRaw.team_a_id || 'T1',
+          bowlingTeamId: matchRaw.team_b_id || 'T2',
+          team1: {
+            id: matchRaw.team_a_id || 'T1',
+            name: matchRaw.team_a_name || 'Team A',
+            shortName: match.team1.name || 'T1',
+            logoColor: match.team1.logoColor || 'from-orange-500 to-amber-600',
+            score: { 
+              runs: match.team1.runs || 0, 
+              wickets: match.team1.wickets || 0, 
+              overs: Math.floor(match.team1.overs || 0), 
+              balls: Math.round(((match.team1.overs || 0) % 1) * 10) 
+            },
+            battingCard: fullScorecard?.innings_1?.batting || [],
+            bowlingCard: fullScorecard?.innings_1?.bowling || []
+          },
+          team2: {
+            id: matchRaw.team_b_id || 'T2',
+            name: matchRaw.team_b_name || 'Team B',
+            shortName: match.team2.name || 'T2',
+            logoColor: match.team2.logoColor || 'from-blue-500 to-indigo-600',
+            score: { 
+              runs: match.team2.runs || 0, 
+              wickets: match.team2.wickets || 0, 
+              overs: Math.floor(match.team2.overs || 0), 
+              balls: Math.round(((match.team2.overs || 0) % 1) * 10) 
+            },
+            battingCard: fullScorecard?.innings_2?.batting || [],
+            bowlingCard: fullScorecard?.innings_2?.bowling || []
+          },
+          isFirstInningsComplete: matchRaw.is_first_innings_complete || false,
+          targetRuns: matchRaw.target_runs || undefined,
+          onStrikeIndex: 0,
+          miniScore: {
+            batsman1: fullScorecard?.innings_1?.batting?.[0] ? {
+              name: fullScorecard.innings_1.batting[0].playerName,
+              runs: fullScorecard.innings_1.batting[0].runs,
+              balls: fullScorecard.innings_1.batting[0].balls,
+              fours: fullScorecard.innings_1.batting[0].fours,
+              sixes: fullScorecard.innings_1.batting[0].sixes,
+              strikeRate: fullScorecard.innings_1.batting[0].strikeRate
+            } : { name: 'Batter 1', runs: 0, balls: 0, fours: 0, sixes: 0, strikeRate: 0 },
+            batsman2: fullScorecard?.innings_1?.batting?.[1] ? {
+              name: fullScorecard.innings_1.batting[1].playerName,
+              runs: fullScorecard.innings_1.batting[1].runs,
+              balls: fullScorecard.innings_1.batting[1].balls,
+              fours: fullScorecard.innings_1.batting[1].fours,
+              sixes: fullScorecard.innings_1.batting[1].sixes,
+              strikeRate: fullScorecard.innings_1.batting[1].strikeRate
+            } : { name: 'Batter 2', runs: 0, balls: 0, fours: 0, sixes: 0, strikeRate: 0 },
+            bowler: fullScorecard?.innings_1?.bowling?.[0] ? {
+              name: fullScorecard.innings_1.bowling[0].playerName,
+              overs: fullScorecard.innings_1.bowling[0].overs,
+              runs: fullScorecard.innings_1.bowling[0].runs,
+              wickets: fullScorecard.innings_1.bowling[0].wickets,
+              economy: fullScorecard.innings_1.bowling[0].economy,
+              maidens: fullScorecard.innings_1.bowling[0].maidens || 0
+            } : { name: 'Bowler', overs: 0, maidens: 0, runs: 0, wickets: 0, economy: 0 }
+          },
+          recentBalls: [],
+          ballByBallHistory: []
+        };
+        setLiveMatch(selectedAsMatch);
+        setCurrentSimulatedView('detail');
+      } catch (err) {
+        console.error('Error fetching full scorecard for matches list', err);
+      }
     } else {
       // Setup a dynamic live scratch match for view
       const selectedAsMatch: Match = {
@@ -219,41 +292,41 @@ export default function MatchesListView({
         bowlingTeamId: 'T2',
         team1: {
           id: 'T1',
-          name: match.team1.name === 'CSK' ? 'Chennai Super Kings' : match.team1.name,
+          name: match.team1.name || 'Team 1',
           shortName: match.team1.name,
           logoColor: match.team1.logoColor,
           score: { runs: match.team1.runs, wickets: match.team1.wickets, overs: Math.floor(match.team1.overs), balls: Math.round((match.team1.overs % 1) * 10) },
           battingCard: [
-            { playerName: "Kiran Kumar", status: 'not out', runs: 45, balls: 24, fours: 3, sixes: 2 }
+            { playerName: "Local Batsman", status: 'not out', runs: 45, balls: 24, fours: 3, sixes: 2 }
           ],
           bowlingCard: [
-            { playerName: 'Ramesh Spinner', overs: 3, maidens: 0, runs: 28, wickets: 1 }
+            { playerName: 'Local Spinner', overs: 3, maidens: 0, runs: 28, wickets: 1 }
           ]
         },
         team2: {
           id: 'T2',
-          name: match.team2.name === 'MI' ? 'Mumbai Indians' : match.team2.name,
+          name: match.team2.name || 'Team 2',
           shortName: match.team2.name,
           logoColor: match.team2.logoColor,
           score: { runs: match.team2.runs, wickets: match.team2.wickets, overs: Math.floor(match.team2.overs), balls: Math.round((match.team2.overs % 1) * 10) },
           battingCard: [
-            { playerName: 'Suresh Raina', status: 'yet to bat', runs: 0, balls: 0, fours: 0, sixes: 0 }
+            { playerName: 'Local AllRounder', status: 'yet to bat', runs: 0, balls: 0, fours: 0, sixes: 0 }
           ],
           bowlingCard: [
-            { playerName: 'Kapil Dev (Junior)', overs: 2, maidens: 0, runs: 12, wickets: 0 }
+            { playerName: 'Local Bowler', overs: 2, maidens: 0, runs: 12, wickets: 0 }
           ]
         },
         isFirstInningsComplete: match.status === 'Completed' ? true : false,
         targetRuns: match.status === 'Completed' ? match.team1.runs + 1 : undefined,
         onStrikeIndex: 0,
         miniScore: {
-          batsman1: { name: 'Kiran Kumar', runs: 45, balls: 24, fours: 3, sixes: 2, strikeRate: 187.5 },
+          batsman1: { name: 'Local Batsman', runs: 45, balls: 24, fours: 3, sixes: 2, strikeRate: 187.5 },
           batsman2: { name: 'Partner Batsman', runs: 12, balls: 8, fours: 1, sixes: 0, strikeRate: 150 },
-          bowler: { name: 'Ramesh Spinner', overs: 3, maidens: 0, runs: 28, wickets: 1, economy: 9.33 }
+          bowler: { name: 'Local Spinner', overs: 3, maidens: 0, runs: 28, wickets: 1, economy: 9.33 }
         },
         recentBalls: match.recentBalls,
         ballByBallHistory: [
-          { overNumber: 8, ballOfOver: 1, run: 4, isWide: false, isNoBall: false, isWicket: false, batsmanName: 'Kiran Kumar', bowlerName: 'Ramesh Spinner', commentary: 'LOFTED! Hit high into the clear sky, splitting deep mid-wicket for four runs!' }
+          { overNumber: 8, ballOfOver: 1, run: 4, isWide: false, isNoBall: false, isWicket: false, batsmanName: 'Local Batsman', bowlerName: 'Local Spinner', commentary: 'LOFTED! Hit high into the clear sky, splitting deep mid-wicket for four runs!' }
         ]
       };
       setLiveMatch(selectedAsMatch);
@@ -554,6 +627,17 @@ export default function MatchesListView({
                             Match Summary
                           </button>
                         </>
+                      )}
+
+                      {m.isDbMatch && (
+                        <button
+                          onClick={() => handleDeleteMatchClick(m.id, m.league)}
+                          className="flex-1 md:w-full bg-rose-50 hover:bg-rose-100 text-rose-700 font-black uppercase text-[10px] tracking-wider py-2 px-3 rounded-lg border border-rose-200 transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                          title="Delete Match from Supabase"
+                        >
+                          <Trash2 className="h-3 w-3 text-rose-600" />
+                          <span>Delete Match</span>
+                        </button>
                       )}
                     </div>
 

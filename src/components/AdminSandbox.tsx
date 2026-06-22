@@ -1,7 +1,8 @@
-import React from 'react';
-import { ArrowLeft, Settings, Award, ShieldAlert, Star } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ArrowLeft, Settings, Award, ShieldAlert, Star, Database, Wifi, WifiOff, RefreshCw, AlertTriangle, Check } from 'lucide-react';
 import { Match } from '../types';
 import MatchSimulator from './MatchSimulator';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 interface AdminSandboxProps {
   liveMatch: Match;
@@ -16,6 +17,45 @@ export default function AdminSandbox({
   onPlayerStatUpdate,
   setCurrentSimulatedView
 }: AdminSandboxProps) {
+  const [testStatus, setTestStatus] = useState<'idle' | 'testing' | 'success' | 'error' | 'not_configured'>('idle');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [fetchedDetails, setFetchedDetails] = useState<{ matches: number; teams: number; players: number } | null>(null);
+
+  const testConnection = async () => {
+    if (!isSupabaseConfigured) {
+      setTestStatus('not_configured');
+      return;
+    }
+    setTestStatus('testing');
+    setErrorMessage(null);
+    try {
+      const [matchesRes, teamsRes, playersRes] = await Promise.all([
+        supabase.from('matches').select('*', { count: 'exact', head: true }),
+        supabase.from('teams').select('*', { count: 'exact', head: true }),
+        supabase.from('players').select('*', { count: 'exact', head: true })
+      ]);
+
+      if (matchesRes.error) throw matchesRes.error;
+      if (teamsRes.error) throw teamsRes.error;
+      if (playersRes.error) throw playersRes.error;
+
+      setFetchedDetails({
+        matches: matchesRes.count || 0,
+        teams: teamsRes.count || 0,
+        players: playersRes.count || 0
+      });
+      setTestStatus('success');
+    } catch (error: any) {
+      console.error('Supabase active validation failed:', error);
+      setErrorMessage(error.message || String(error));
+      setTestStatus('error');
+    }
+  };
+
+  useEffect(() => {
+    testConnection();
+  }, []);
+
   return (
     <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 text-left" id="admin-sandbox-container">
       {/* Left columns: High fidelity Simulator & scoring action table */}
@@ -59,34 +99,106 @@ export default function AdminSandbox({
 
       {/* Right Column: Rule Book settings, Security logs, and State indicators */}
       <div className="space-y-6">
-        {/* Administrator Credentials & Active State Box */}
-        <div className="rounded-2xl border border-red-150 bg-gradient-to-br from-slate-900 via-violet-950 to-slate-900 text-white p-6 shadow-md relative overflow-hidden">
-          <div className="absolute right-0 bottom-[-10px] text-7xl opacity-5 select-none font-black text-violet-300">🛡️</div>
+        {/* Supabase Connection Diagnostic & State Box */}
+        <div className="rounded-2xl border border-slate-850 bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 text-white p-6 shadow-md relative overflow-hidden">
+          <div className="absolute right-0 bottom-[-10px] text-7xl opacity-5 select-none font-black text-slate-400">⚡</div>
           
-          <span className="inline-flex items-center gap-1.5 bg-red-600 text-white font-black uppercase text-[8px] tracking-widest px-2 py-0.5 rounded">
-            <span className="h-1 w-1 bg-white rounded-full animate-ping" />
-            LIVE SECURITY SESSION
-          </span>
+          <div className="flex items-center justify-between">
+            <span className={`inline-flex items-center gap-1 text-[8px] uppercase tracking-wider px-2 py-0.5 rounded font-black ${
+              testStatus === 'success' ? 'text-emerald-400 bg-emerald-950/50 border border-emerald-500/30' :
+              testStatus === 'error' ? 'text-rose-400 bg-rose-950/50 border border-rose-500/30' :
+              testStatus === 'testing' ? 'text-yellow-400 bg-yellow-950/50 border border-yellow-500/30 animate-pulse' :
+              'text-orange-400 bg-orange-950/50 border border-orange-500/30'
+            }`}>
+              {testStatus === 'success' && <Wifi className="h-2.5 w-2.5 mr-0.5" />}
+              {testStatus === 'error' && <WifiOff className="h-2.5 w-2.5 mr-0.5" />}
+              {testStatus === 'success' ? 'CONNECTED' : 
+               testStatus === 'error' ? 'CONNECTION ERROR' :
+               testStatus === 'testing' ? 'DIAGNOSTIC ACTIVE' : 'LOCAL OFFLINE'}
+            </span>
 
-          <h4 className="font-display font-black text-slate-100 text-sm uppercase tracking-wider flex items-center gap-1.5 mt-4 mb-2">
-            <ShieldAlert className="h-4 w-4 text-red-500" />
-            RBAC Access Verification
-          </h4>
-          
-          <div className="space-y-3 font-mono text-xs text-slate-300 pt-2 border-t border-white/10 mt-3">
-            <div className="flex justify-between">
-              <span>Token Level:</span>
-              <span className="text-yellow-400 font-bold">DEV_ROOT</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Client State:</span>
-              <span className="text-emerald-400 font-bold">Authenticated</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Sync Endpoint:</span>
-              <span className="text-blue-400 font-bold">Express API</span>
-            </div>
+            <button 
+              onClick={testConnection}
+              disabled={testStatus === 'testing'}
+              className="p-1 hover:bg-white/10 rounded text-slate-400 hover:text-white transition-colors cursor-pointer"
+              title="Rerun Supabase connection diagnostic"
+            >
+              <RefreshCw className={`h-3 w-3 ${testStatus === 'testing' ? 'animate-spin' : ''}`} />
+            </button>
           </div>
+
+          <h4 className="font-display font-black text-slate-100 text-sm uppercase tracking-wider flex items-center gap-1.5 mt-4 mb-1">
+            <Database className="h-4 w-4 text-violet-400" />
+            Supabase Connection Diagnostic
+          </h4>
+          <p className="text-[10px] text-slate-400 leading-normal font-sans mb-3">
+            Real-time validation engine querying actual active database tables.
+          </p>
+
+          {testStatus === 'success' && (
+            <div className="space-y-2 mt-3 pt-3 border-t border-white/10">
+              <div className="flex items-center gap-1.5 text-xs text-emerald-400 font-bold mb-1">
+                <Check className="h-3.5 w-3.5" />
+                <span>Working Correctly!</span>
+              </div>
+              <div className="space-y-1 font-mono text-[10px] text-slate-300">
+                <div className="flex justify-between pb-1 border-b border-white/5">
+                  <span>Matches count:</span>
+                  <span className="text-white font-bold">{fetchedDetails?.matches}</span>
+                </div>
+                <div className="flex justify-between pb-1 border-b border-white/5">
+                  <span>Teams count:</span>
+                  <span className="text-white font-bold">{fetchedDetails?.teams}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Players count:</span>
+                  <span className="text-white font-bold">{fetchedDetails?.players}</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {testStatus === 'error' && (
+            <div className="space-y-2 mt-3 pt-3 border-t border-white/10">
+              <div className="flex items-center gap-1.5 text-xs text-rose-400 font-bold mb-1">
+                <AlertTriangle className="h-3.5 w-3.5" />
+                <span>Connection failed</span>
+              </div>
+              <p className="text-[10px] font-mono text-rose-300 leading-normal bg-rose-950/40 p-2 rounded border border-rose-900/30 max-h-32 overflow-y-auto">
+                {errorMessage}
+              </p>
+              <p className="text-[9px] text-slate-400 leading-normal pt-1">
+                Check whether your <code className="text-yellow-400 font-bold font-mono">VITE_SUPABASE_URL</code> or <code className="text-yellow-400 font-bold font-mono">VITE_SUPABASE_ANON_KEY</code> credentials entered in your environment secrets have expired or carry typo characters.
+              </p>
+            </div>
+          )}
+
+          {testStatus === 'not_configured' && (
+            <div className="space-y-2 mt-3 pt-3 border-t border-white/10">
+              <div className="flex items-center gap-1.5 text-xs text-orange-400 font-bold mb-1">
+                <AlertTriangle className="h-3.5 w-3.5" />
+                <span>Missing environment variables</span>
+              </div>
+              <p className="text-[10px] text-slate-300 leading-relaxed">
+                App is currently running in fallback <strong>Local Offline</strong> mode because you have not set up your Supabase database credentials.
+              </p>
+              <div className="bg-slate-800 p-2 rounded border border-white/5 space-y-1 font-mono text-[9px] text-slate-300">
+                <span className="block text-white font-medium mb-0.5">Required Variables:</span>
+                <div>• VITE_SUPABASE_URL</div>
+                <div>• VITE_SUPABASE_ANON_KEY</div>
+              </div>
+              <p className="text-[9px] text-slate-400 leading-normal pt-1">
+                Go to <strong>Settings (cog icon) &gt; Secrets</strong> inside the workspace to enter them securely to connect real-time matches instantly!
+              </p>
+            </div>
+          )}
+
+          {testStatus === 'testing' && (
+            <div className="flex flex-col items-center justify-center py-6 text-center text-slate-400 space-y-2 mt-3 pt-3 border-t border-white/10">
+              <RefreshCw className="h-5 w-5 text-violet-400 animate-spin" />
+              <span className="text-xs font-mono">Verifying database ping...</span>
+            </div>
+          )}
         </div>
 
         {/* Local Rulebook / Ground Rules Customizer */}
